@@ -86,6 +86,15 @@ Nano Banana 2, `image2image`, 9:16, 1K (20 credits). References in this order: h
 - Runway: Standard $15/mo (625 credits), Pro $35/mo (2,250), Max $95/mo (9,500, one-month rollover); 20% off yearly. Gen-4.5 = 12 credits/s (60 per 5 s clip); Gen-4 Turbo = 5 credits/s. Free plan: 125 one-time credits, watermarked, no Gen-4.5.
 - Cost per 5 s clip at monthly billing: Kling 3.0 direct $0.30–0.40; OpenArt Veo 3.1 lite (4 s) $0.23–0.28; OpenArt Kling 3.0 $0.35–0.44; Runway Gen-4.5 $0.60–1.44; Runway Gen-4 Turbo $0.25–0.60.
 - Decision: test Kling (free trial) first; consider Runway only if Kling fails to hold Gagan's identity.
+- Kling Motion Control (approved still + 3–30 s reference video; output length = reference length): 3.0 Standard 720p 9 credits/s, 3.0 Pro 1080p 12 credits/s, 2.6 Standard 5 credits/s. Clothing, hair and props come from the still; the face element only works with "orientation matches video". Reference must be one person, full body, static camera, no cuts; fast or complex motion can be truncated and is not refunded. Not available through the OpenArt connector.
+- Motion references: record our own (phone on tripod, flowy kurta/Anarkali, 4–8 s) or use Kling's Motion Library. Do not download other creators' Reels as references.
+
+### Free-trial test plan (66 Kling credits)
+
+| Test | Settings | Credits |
+|---|---|---:|
+| Image-to-video | Kling 3.0, blue still as start + end frame, `@gagan`, 5 s, 720p, no sound | 30 |
+| Motion control | Kling 3.0 Standard, blue still + self-recorded 4.0 s reference, orientation matches video, `@gagan` face element | 36 |
 
 ## Credit ledger
 
