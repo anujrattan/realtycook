@@ -61,6 +61,18 @@ Test the blue clip first; generate plum only after blue passes review.
 | PixVerse V6 image2video | 720p, 5 s, no audio, start = end = still | 70 |
 | PixVerse V6 image2video | 540p, 5 s, no audio | 50 |
 
+#### Blue clip prompt (user runs it in the OpenArt UI)
+
+Settings: Veo 3.1, image-to-video, start frame and end frame = approved blue still, 720p, 4 s, 9:16, audio off, lite. Save into `gaggz-styles`.
+
+```text
+@gagan stays exactly as in the start frame: same face, hair, jewellery and outfit throughout. Photorealistic smartphone video, static camera on a tripod at chest height, full body head to toe in frame, bright Indian home interior with soft window daylight.
+
+She gives a soft, natural smile at the camera, shifts her weight gently, then turns slowly about a quarter to her left so the flare of the blue printed Anarkali and the maroon hem border are visible, and turns back to face the camera, ending in the same pose as the start frame. Slow, relaxed, real-person movement.
+
+The dupatta stays draped on her shoulder and moves only slightly. Hands natural, five fingers. Face fully visible at all times, no blur. No camera movement, no zoom, no cuts, no text, no extra people, no change to the outfit's colours or print.
+```
+
 ### Recipe that preserved identity
 
 Nano Banana 2, `image2image`, 9:16, 1K (20 credits). References in this order: headshot, full body, face-free garment crop. The prompt names image 1 as the face, image 2 as proportions only, image 3 as the exact outfit, and lists the accessories (left-nostril stud, squiggle pendant + mole, pearl double drops, rose-gold watch left wrist only, right wrist bare).
