@@ -38,6 +38,17 @@ Original product uploads (default project) contain other models' faces; use the 
 | Gagan in blue KLOSIA, full body, 9:16 1K | [I9LXb4vODiRIdqoZvenD](https://cdn.openart.ai/openart-ai/production/2026-10/create-image/4XGNlLVl4BHlu6uyLsGg/image_1791717114081_93120721_1791717114144_fdd8e358.png) | Approved 2026-10-11 |
 | Gagan in plum GoSriKi, full body, 9:16 1K | [QF0uqXNIrLNe3u7Y75QB](https://cdn.openart.ai/openart-ai/production/2026-10/create-image/4XGNlLVl4BHlu6uyLsGg/image_1791717681048_459994ab_1791717681093_b078d003.png) | Approved 2026-10-11 as is (watch on right wrist accepted) |
 
+### OpenArt characters
+
+Through the connector, a character only takes effect when it is passed as a `visualReferences` entry of type `character` with its internal ID, and the prompt mentions it as `@<characterId>` (e.g. `@4gaD3y398wSOkxvuT0Xc`). Typing the display name `@gagan` alone is plain text.
+
+Only some modes accept characters (e.g. Veo 3.1 `element2video`, Seedance `element2video`). Image-to-image and image-to-video forms do not; there the approved still or headshot is the identity lock.
+
+| Character | ID | Built from | Status |
+|---|---|---|---|
+| "Gagandeep kaur" | `4gaD3y398wSOkxvuT0Xc` | Retired Buggi images | Do not use; delete in OpenArt |
+| `@gagan` | unknown — needed from user | should be approved headshot + full body | To confirm |
+
 ### Reel 1 plan — "Blue or Plum?"
 
 Two separate image-to-video clips, one per approved still, each using the same still as both start and end frame so her face returns to the approved look. Subtle motion only — no full twirls (the earlier PixVerse twirl test drifted mid-spin and the dupatta flew). Clips are joined with text overlays locally with ffmpeg, which costs nothing.
