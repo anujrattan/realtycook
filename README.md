@@ -1,6 +1,6 @@
 # @gaggz.styles — production log
 
-Working record for the @gaggz.styles Instagram account (AI influencer Gagan Deep Kaur, Amazon Associates India, tracking ID `gaggz.styles-21`). It tracks verified products, approved OpenArt assets, every paid generation, and what to do next.
+Working record for the @gaggz.styles Instagram account (AI influencer Gagan Deep Kaur, Amazon Associates India, tracking ID `gaggzstyles-21`, no dot). It tracks verified products, approved OpenArt assets, every paid generation, and what to do next.
 
 Rule: no paid generation runs without explicit approval of the model, settings and exact credit cost.
 
