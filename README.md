@@ -36,7 +36,7 @@ Original product uploads (default project) contain other models' faces; use the 
 | Still | Asset | Status |
 |---|---|---|
 | Gagan in blue KLOSIA, full body, 9:16 1K | [I9LXb4vODiRIdqoZvenD](https://cdn.openart.ai/openart-ai/production/2026-10/create-image/4XGNlLVl4BHlu6uyLsGg/image_1791717114081_93120721_1791717114144_fdd8e358.png) | Approved 2026-10-11 |
-| Gagan in plum GoSriKi, full body, 9:16 1K | — | Next, awaiting go-ahead (20 credits) |
+| Gagan in plum GoSriKi, full body, 9:16 1K | [QF0uqXNIrLNe3u7Y75QB](https://cdn.openart.ai/openart-ai/production/2026-10/create-image/4XGNlLVl4BHlu6uyLsGg/image_1791717681048_459994ab_1791717681093_b078d003.png) | Identity and outfit match; watch rendered on her RIGHT wrist — awaiting decision |
 
 ### Recipe that preserved identity
 
@@ -48,3 +48,4 @@ Nano Banana 2, `image2image`, 9:16, 1K (20 credits). References in this order: h
 |---|---|---|---:|---|---:|
 | before 2026-10-11 | Earlier experiments, incl. Wan 2.7 Blue/Plum video | various | ~1,200 | Rejected | 2,735 |
 | 2026-10-11 | Test still, blue KLOSIA | Nano Banana 2 i2i, 9:16, 1K | 20 | Approved | 2,715 |
+| 2026-10-11 | Plum still, GoSriKi | Nano Banana 2 i2i, 9:16, 1K | 20 | Identity and outfit good; watch on wrong wrist | 2,695 |
