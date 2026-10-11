@@ -36,7 +36,19 @@ Original product uploads (default project) contain other models' faces; use the 
 | Still | Asset | Status |
 |---|---|---|
 | Gagan in blue KLOSIA, full body, 9:16 1K | [I9LXb4vODiRIdqoZvenD](https://cdn.openart.ai/openart-ai/production/2026-10/create-image/4XGNlLVl4BHlu6uyLsGg/image_1791717114081_93120721_1791717114144_fdd8e358.png) | Approved 2026-10-11 |
-| Gagan in plum GoSriKi, full body, 9:16 1K | [QF0uqXNIrLNe3u7Y75QB](https://cdn.openart.ai/openart-ai/production/2026-10/create-image/4XGNlLVl4BHlu6uyLsGg/image_1791717681048_459994ab_1791717681093_b078d003.png) | Identity and outfit match; watch rendered on her RIGHT wrist — awaiting decision |
+| Gagan in plum GoSriKi, full body, 9:16 1K | [QF0uqXNIrLNe3u7Y75QB](https://cdn.openart.ai/openart-ai/production/2026-10/create-image/4XGNlLVl4BHlu6uyLsGg/image_1791717681048_459994ab_1791717681093_b078d003.png) | Approved 2026-10-11 as is (watch on right wrist accepted) |
+
+### Reel 1 plan — "Blue or Plum?"
+
+Two separate image-to-video clips, one per approved still, each using the same still as both start and end frame so her face returns to the approved look. Subtle motion only — no full twirls (the earlier PixVerse twirl test drifted mid-spin and the dupatta flew). Clips are joined with text overlays locally with ffmpeg, which costs nothing.
+
+Test the blue clip first; generate plum only after blue passes review.
+
+| Option | Settings | Credits per clip |
+|---|---|---:|
+| Veo 3.1 image2video (recommended) | lite, 720p, 4 s, 9:16, no audio, start = end = still | 80 |
+| PixVerse V6 image2video | 720p, 5 s, no audio, start = end = still | 70 |
+| PixVerse V6 image2video | 540p, 5 s, no audio | 50 |
 
 ### Recipe that preserved identity
 
