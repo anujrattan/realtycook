@@ -83,6 +83,9 @@ Nano Banana 2, `image2image`, 9:16, 1K (20 credits). References in this order: h
 - Kling AI direct: Standard $8.80/mo renewal ($6.99 first month; ₹999 via India App Store) for 660 credits; Pro $32.56/mo for 3,000; Premier $80.96/mo for 8,000. Commercial use on all paid tiers. Monthly credits expire; top-ups last 2 years.
 - Kling 3.0 image-to-video, 5 s, 720p, no audio: 30 Kling credits direct vs 125 OpenArt credits for the same model on OpenArt.
 - Kling Elements binds a character from 2–4 reference images and is referenced by `@name` in the prompt, alongside start/end frames.
+- Runway: Standard $15/mo (625 credits), Pro $35/mo (2,250), Max $95/mo (9,500, one-month rollover); 20% off yearly. Gen-4.5 = 12 credits/s (60 per 5 s clip); Gen-4 Turbo = 5 credits/s. Free plan: 125 one-time credits, watermarked, no Gen-4.5.
+- Cost per 5 s clip at monthly billing: Kling 3.0 direct $0.30–0.40; OpenArt Veo 3.1 lite (4 s) $0.23–0.28; OpenArt Kling 3.0 $0.35–0.44; Runway Gen-4.5 $0.60–1.44; Runway Gen-4 Turbo $0.25–0.60.
+- Decision: test Kling (free trial) first; consider Runway only if Kling fails to hold Gagan's identity.
 
 ## Credit ledger
 
