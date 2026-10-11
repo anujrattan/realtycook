@@ -77,6 +77,13 @@ The dupatta stays draped on her shoulder and moves only slightly. Hands natural,
 
 Nano Banana 2, `image2image`, 9:16, 1K (20 credits). References in this order: headshot, full body, face-free garment crop. The prompt names image 1 as the face, image 2 as proportions only, image 3 as the exact outfit, and lists the accessories (left-nostril stud, squiggle pendant + mole, pearl double drops, rose-gold watch left wrist only, right wrist bare).
 
+## Tooling notes (checked 2026-10-11)
+
+- OpenArt Starter ($14/mo, 4,000 credits): the pricing page lists commercial use rights from Plus ($34/mo, 12,000 credits) upward, not on Starter. Affiliate content is commercial — confirm with OpenArt or upgrade before publishing.
+- Kling AI direct: Standard $8.80/mo renewal ($6.99 first month; ₹999 via India App Store) for 660 credits; Pro $32.56/mo for 3,000; Premier $80.96/mo for 8,000. Commercial use on all paid tiers. Monthly credits expire; top-ups last 2 years.
+- Kling 3.0 image-to-video, 5 s, 720p, no audio: 30 Kling credits direct vs 125 OpenArt credits for the same model on OpenArt.
+- Kling Elements binds a character from 2–4 reference images and is referenced by `@name` in the prompt, alongside start/end frames.
+
 ## Credit ledger
 
 | Date | Item | Model / settings | Credits | Result | Balance |
