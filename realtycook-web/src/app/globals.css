@@ -1,0 +1,192 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * RealtyCook design tokens. See docs/style-guide.md for usage rules.
+ * Brand core: Realty Red + Cook Ink on a warm Kitchen Cream canvas,
+ * with Saffron Gold reserved for investment / returns data only.
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-poppins);
+  --font-script: var(--font-kristi);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-brand-red: var(--rc-red);
+  --color-brand-red-deep: var(--rc-red-deep);
+  --color-brand-red-soft: var(--rc-red-soft);
+  --color-ink: var(--rc-ink);
+  --color-ink-2: var(--rc-ink-2);
+  --color-cream: var(--rc-cream);
+  --color-cream-2: var(--rc-cream-2);
+  --color-stone: var(--rc-stone);
+  --color-gold: var(--rc-gold);
+  --color-gold-soft: var(--rc-gold-soft);
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --shadow-soft: 0 1px 2px rgb(17 17 17 / 0.04), 0 8px 24px -8px rgb(17 17 17 / 0.12);
+  --shadow-lift: 0 2px 4px rgb(17 17 17 / 0.05), 0 24px 48px -16px rgb(17 17 17 / 0.22);
+  --shadow-red: 0 12px 32px -10px rgb(200 16 46 / 0.55);
+}
+
+:root {
+  --rc-red: #c8102e;
+  --rc-red-deep: #8e0b1f;
+  --rc-red-soft: #fbe7ea;
+  --rc-ink: #111111;
+  --rc-ink-2: #2a2a2d;
+  --rc-cream: #faf7f2;
+  --rc-cream-2: #f1ece3;
+  --rc-stone: #6b6862;
+  --rc-gold: #c9952b;
+  --rc-gold-soft: #f6ead0;
+
+  --background: var(--rc-cream);
+  --foreground: var(--rc-ink);
+  --card: #ffffff;
+  --card-foreground: var(--rc-ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--rc-ink);
+  --primary: var(--rc-red);
+  --primary-foreground: #ffffff;
+  --secondary: var(--rc-cream-2);
+  --secondary-foreground: var(--rc-ink);
+  --muted: var(--rc-cream-2);
+  --muted-foreground: var(--rc-stone);
+  --accent: var(--rc-red-soft);
+  --accent-foreground: var(--rc-red-deep);
+  --destructive: #b42318;
+  --border: #e6e0d6;
+  --input: #ddd6ca;
+  --ring: var(--rc-red);
+  --chart-1: var(--rc-red);
+  --chart-2: var(--rc-gold);
+  --chart-3: var(--rc-ink);
+  --chart-4: var(--rc-stone);
+  --chart-5: var(--rc-red-deep);
+  --radius: 0.75rem;
+  --sidebar: var(--rc-cream);
+  --sidebar-foreground: var(--rc-ink);
+  --sidebar-primary: var(--rc-red);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--rc-cream-2);
+  --sidebar-accent-foreground: var(--rc-ink);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--rc-red);
+}
+
+/* Used for ink-coloured bands (comparison, footer). */
+.dark {
+  --background: var(--rc-ink);
+  --foreground: #f5f2ec;
+  --card: #1b1b1d;
+  --card-foreground: #f5f2ec;
+  --popover: #1b1b1d;
+  --popover-foreground: #f5f2ec;
+  --primary: #e0263f;
+  --primary-foreground: #ffffff;
+  --secondary: #232326;
+  --secondary-foreground: #f5f2ec;
+  --muted: #232326;
+  --muted-foreground: #a8a39a;
+  --accent: #2a1316;
+  --accent-foreground: #ffb3bd;
+  --destructive: #f97066;
+  --border: rgb(255 255 255 / 0.1);
+  --input: rgb(255 255 255 / 0.16);
+  --ring: #e0263f;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
+  }
+  ::selection {
+    background: var(--rc-red);
+    color: #fff;
+  }
+}
+
+@layer components {
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-xs font-semibold tracking-[0.18em] text-brand-red uppercase;
+  }
+  .eyebrow::before {
+    content: "";
+    @apply h-px w-6 bg-brand-red;
+  }
+  .section {
+    @apply mx-auto w-full max-w-7xl px-5 sm:px-8;
+  }
+  .grain {
+    background-image: radial-gradient(rgb(17 17 17 / 0.05) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
