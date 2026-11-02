@@ -39,6 +39,7 @@ yarn-error.log*
 .vercel
 .wrangler
 .open-next
+/*.zip
 
 # typescript
 *.tsbuildinfo

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createLeadFromEnquiry, type LeadIntent } from "@/lib/crm-store";
+import { createOrMergeLead, type LeadIntent } from "@/lib/crm-store";
 
 const INTENTS = new Set(["buy", "sell", "invest", "lease"]);
 
@@ -26,8 +26,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ errors }, { status: 422 });
   }
 
-  // Save directly to the CRM backend (Supabase when configured in .env, or server fallback store)
-  const lead = await createLeadFromEnquiry({
+  const lead = await createOrMergeLead({
     name,
     phone,
     email,

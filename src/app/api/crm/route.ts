@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import {
-  addCrmUser,
+  addCrmUserWithRbac,
   addLeadComment,
-  assignLeadToUser,
-  createLeadFromEnquiry,
+  assignLeadWithRbac,
+  createOrMergeLead,
   getCrmSnapshot,
   type LeadIntent,
   type LeadStage,
-  removeCrmUser,
+  removeCrmUserWithRbac,
   type ServicePillar,
   type UserRole,
   updateLeadStageOrFollowup,
@@ -30,13 +30,6 @@ export async function POST(request: Request) {
 
   const action = String(payload.action ?? "");
   const actorId = String(payload.actorId ?? "");
-  const initialSnapshot = await getCrmSnapshot();
-  const actor =
-    initialSnapshot.users.find((u) => u.id === actorId) ?? initialSnapshot.users[0];
-
-  if (!actor) {
-    return NextResponse.json({ error: "Actor user not found." }, { status: 403 });
-  }
 
   if (action === "create_lead") {
     const name = String(payload.name ?? "").trim();
@@ -47,7 +40,7 @@ export async function POST(request: Request) {
         { status: 422 },
       );
     }
-    const lead = await createLeadFromEnquiry({
+    const lead = await createOrMergeLead({
       name,
       phone,
       email: String(payload.email ?? "").trim(),
@@ -56,27 +49,30 @@ export async function POST(request: Request) {
       pillar: (payload.pillar as ServicePillar) ?? "homes",
       budget: String(payload.budget ?? "1-3cr"),
       message: String(payload.message ?? "").trim(),
-      source: String(payload.source ?? "CRM Manual Entry"),
+      source: String(payload.source ?? "Direct Entry"),
+      assigned_to: payload.assignedTo ? String(payload.assignedTo) : null,
     });
     const snapshot = await getCrmSnapshot();
-    return NextResponse.json({ ok: true, lead, ...snapshot });
+    return NextResponse.json({ ok: true, lead, snapshot });
   }
 
   if (action === "assign_lead") {
-    const result = await assignLeadToUser(
-      actor,
-      String(payload.leadId ?? ""),
-      payload.targetUserId ? String(payload.targetUserId) : null,
-    );
+    const result = await assignLeadWithRbac({
+      actorId,
+      leadId: String(payload.leadId ?? ""),
+      targetUserId: payload.targetUserId ? String(payload.targetUserId) : null,
+    });
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 403 });
     }
     const snapshot = await getCrmSnapshot();
-    return NextResponse.json({ ok: true, ...snapshot });
+    return NextResponse.json({ ok: true, lead: result.lead, snapshot });
   }
 
   if (action === "update_stage") {
-    const result = await updateLeadStageOrFollowup(actor, String(payload.leadId ?? ""), {
+    const result = await updateLeadStageOrFollowup({
+      actorId,
+      leadId: String(payload.leadId ?? ""),
       stage: payload.stage as LeadStage | undefined,
       nextFollowupAt:
         payload.nextFollowupAt !== undefined
@@ -87,25 +83,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error }, { status: 403 });
     }
     const snapshot = await getCrmSnapshot();
-    return NextResponse.json({ ok: true, ...snapshot });
+    return NextResponse.json({ ok: true, lead: result.lead, snapshot });
   }
 
   if (action === "add_comment") {
-    const result = await addLeadComment(
-      actor,
-      String(payload.leadId ?? ""),
-      String(payload.body ?? ""),
-      payload.followupScheduledFor ? String(payload.followupScheduledFor) : null,
-    );
+    const result = await addLeadComment({
+      actorId,
+      leadId: String(payload.leadId ?? ""),
+      body: String(payload.body ?? ""),
+      nextFollowupAt: payload.nextFollowupAt ? String(payload.nextFollowupAt) : null,
+      newStage: payload.newStage ? (payload.newStage as LeadStage) : undefined,
+    });
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 422 });
     }
     const snapshot = await getCrmSnapshot();
-    return NextResponse.json({ ok: true, ...snapshot });
+    return NextResponse.json({ ok: true, comment: result.comment, snapshot });
   }
 
   if (action === "add_user") {
-    const result = await addCrmUser(actor, {
+    const result = await addCrmUserWithRbac({
+      actorId,
       name: String(payload.name ?? ""),
       email: String(payload.email ?? ""),
       phone: String(payload.phone ?? ""),
@@ -116,16 +114,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error }, { status: 403 });
     }
     const snapshot = await getCrmSnapshot();
-    return NextResponse.json({ ok: true, ...snapshot });
+    return NextResponse.json({ ok: true, user: result.user, snapshot });
   }
 
   if (action === "remove_user") {
-    const result = await removeCrmUser(actor, String(payload.targetUserId ?? ""));
+    const result = await removeCrmUserWithRbac({
+      actorId,
+      targetUserId: String(payload.targetUserId ?? ""),
+    });
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 403 });
     }
     const snapshot = await getCrmSnapshot();
-    return NextResponse.json({ ok: true, ...snapshot });
+    return NextResponse.json({ ok: true, snapshot });
   }
 
   return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });

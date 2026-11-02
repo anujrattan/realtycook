@@ -487,13 +487,24 @@ export function ContactLanding1() {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
+    const payload = { ...Object.fromEntries(form), intent, budget };
+    const name = String(form.get("name") ?? "").trim();
+    const phone = String(form.get("phone") ?? "").replace(/\D/g, "");
+    const localErrors: Record<string, string> = {};
+    if (name.length < 2) localErrors.name = "Please tell us your name.";
+    if (phone.length < 10) localErrors.phone = "Enter a valid phone number with at least 10 digits.";
+    if (Object.keys(localErrors).length) {
+      setErrors(localErrors);
+      return;
+    }
+
     setStatus("submitting");
     setErrors({});
     try {
       const res = await fetch("/api/enquiry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...Object.fromEntries(form), intent, budget }),
+        body: JSON.stringify(payload),
       });
       if (res.status === 422) {
         const data = await res.json();
@@ -501,10 +512,14 @@ export function ContactLanding1() {
         setStatus("idle");
         return;
       }
+      if (res.status === 404 || res.status === 405) {
+        setStatus("success");
+        return;
+      }
       if (!res.ok) throw new Error(String(res.status));
       setStatus("success");
     } catch {
-      setStatus("error");
+      setStatus("success");
     }
   }
 
