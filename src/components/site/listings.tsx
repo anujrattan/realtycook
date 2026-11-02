@@ -88,7 +88,7 @@ export function Listings() {
                     </p>
                     <button
                       type="button"
-                      onClick={() => chooseIntent(l.category === "invest" ? "invest" : l.category === "rent" ? "rent" : "buy")}
+                      onClick={() => chooseIntent(l.category === "invest" ? "invest" : l.category === "rent" ? "lease" : "buy")}
                       className="inline-flex items-center gap-1 rounded-full border border-border px-3.5 py-2 text-sm font-semibold text-ink transition-colors hover:border-brand-red hover:bg-brand-red hover:text-white"
                       aria-label={`Enquire about ${l.title}`}
                     >

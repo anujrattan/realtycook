@@ -30,11 +30,15 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files (keep .env.example tracked)
+.env
+.env.*
+!.env.example
 
-# vercel
+# vercel / cloudflare
 .vercel
+.wrangler
+.open-next
 
 # typescript
 *.tsbuildinfo
@@ -42,3 +46,4 @@ next-env.d.ts
 
 # agent tooling
 agent-tools/
+.cursor/

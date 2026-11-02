@@ -2,15 +2,13 @@
 
 import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Wordmark } from "@/components/brand/logo";
+import { Logo } from "@/components/brand/logo";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "#modes", label: "Buy · Sell · Invest" },
+  { href: "#modes", label: "Services" },
   { href: "#process", label: "How we work" },
-  { href: "#listings", label: "Properties" },
-  { href: "#calculator", label: "Returns" },
   { href: "#why", label: "Why us" },
 ];
 
@@ -33,8 +31,8 @@ export function Header() {
       )}
     >
       <div className="section flex h-[72px] items-center justify-between gap-6">
-        <a href="#top" aria-label="RealtyCook home" className="pt-3 text-[15px] sm:text-base">
-          <Wordmark />
+        <a href="#top" aria-label="RealtyCook home" className="shrink-0">
+          <Logo className="h-12 sm:h-16" />
         </a>
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
           {NAV.map((n) => (

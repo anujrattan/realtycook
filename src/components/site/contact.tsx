@@ -2,6 +2,7 @@
 
 import { CheckCircle2, Loader2, Phone, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ChefHat } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,10 +12,10 @@ import { cn } from "@/lib/utils";
 import { INTENT_EVENT, type Intent } from "./intent";
 
 const INTENT_OPTIONS: { id: Intent; label: string; hint: string }[] = [
-  { id: "buy", label: "Buy", hint: "A home or second home" },
+  { id: "buy", label: "Buy", hint: "A home or commercial space" },
   { id: "sell", label: "Sell", hint: "Get the right price" },
-  { id: "invest", label: "Invest", hint: "Income or growth" },
-  { id: "rent", label: "Rent / Lease", hint: "Find or place a tenant" },
+  { id: "invest", label: "Invest", hint: "Income or capital growth" },
+  { id: "lease", label: "Leasing", hint: "Lease out or take on lease" },
 ];
 
 const BUDGETS = [
@@ -67,16 +68,48 @@ export function Contact() {
   return (
     <section id="contact" className="section scroll-mt-24 py-24 sm:py-32">
       <div className="grid overflow-hidden rounded-[2rem] border border-border bg-white shadow-lift lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="relative overflow-hidden bg-brand-red p-8 text-white sm:p-12">
-          <div className="pointer-events-none absolute -right-24 -bottom-24 size-80 rounded-full border-[40px] border-white/10" />
-          <div className="pointer-events-none absolute -right-8 -bottom-8 size-40 rounded-full border-[24px] border-white/10" />
-          <span className="text-xs font-semibold tracking-[0.18em] text-white/70 uppercase">Free consultation</span>
-          <h2 className="mt-4 text-4xl font-semibold sm:text-5xl">Tell us what you&apos;re hungry for.</h2>
-          <p className="mt-5 max-w-sm text-white/80">
-            Share a few details and a RealtyCook advisor will call you back within one working day. No spam, and no
-            pressure to sign anything.
-          </p>
-          <ul className="relative mt-10 space-y-4 text-sm">
+        <div className="relative flex flex-col justify-between overflow-hidden bg-brand-red p-8 text-white sm:p-12">
+          <ChefHat className="pointer-events-none absolute -right-10 -bottom-10 h-64 text-white/14 sm:h-72" />
+          <div>
+            <span className="text-xs font-semibold tracking-[0.18em] text-white/70 uppercase">Free consultation</span>
+            <h2 className="mt-4 text-4xl font-semibold sm:text-5xl">Tell us what you&apos;re hungry for.</h2>
+            <p className="mt-5 max-w-sm text-white/80">
+              Share a few details and our advisor will call you back within one working day. No spam, and no pressure to
+              sign anything.
+            </p>
+
+            {/* Named Advisor Desk Card */}
+            <div className="relative mt-8 rounded-2xl border border-white/20 bg-ink/90 p-5 text-white shadow-lift backdrop-blur">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3.5">
+                  <div className="relative flex size-12 shrink-0 items-center justify-center rounded-full bg-brand-red font-heading text-base font-bold text-white">
+                    KY
+                    <span className="absolute right-0 bottom-0 size-3 rounded-full border-2 border-ink bg-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">Karan Yadav · VP - Sales</p>
+                    <p className="text-xs text-white/65">Residential, Commercial, Land &amp; Leasing Desk</p>
+                  </div>
+                </div>
+                <span className="hidden rounded-full bg-emerald-500/20 px-2.5 py-1 text-[10px] font-bold tracking-wide text-emerald-300 uppercase sm:inline-block">
+                  Direct Desk
+                </span>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3.5 text-xs">
+                <span className="text-white/50">Direct WhatsApp &amp; Phone</span>
+                <a
+                  href="https://wa.me/919056050813?text=Hi%20Karan%2C%20I%20would%20like%20to%20discuss%20a%20property%20requirement."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 font-semibold text-gold tabular-nums hover:underline"
+                >
+                  <Phone className="size-3.5" /> +91 90560 50813 (WhatsApp)
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <ul className="relative mt-8 space-y-4 text-sm">
             <li className="flex items-center gap-3">
               <span className="flex size-9 items-center justify-center rounded-full bg-white/15">
                 <Phone className="size-4" />
@@ -147,7 +180,7 @@ export function Contact() {
                   <Input id="email" name="email" type="email" autoComplete="email" placeholder="you@example.com" aria-invalid={!!errors.email} className="h-11" />
                 </FieldWrap>
                 <FieldWrap id="city" label="City or locality">
-                  <Input id="city" name="city" placeholder="e.g. Gurugram, Pune, Dubai (NRI)" className="h-11" />
+                  <Input id="city" name="city" placeholder="e.g. Gurugram, Pune, Mumbai" className="h-11" />
                 </FieldWrap>
               </div>
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { createLeadFromEnquiry, type LeadIntent } from "@/lib/crm-store";
 
-const INTENTS = new Set(["buy", "sell", "invest", "rent"]);
+const INTENTS = new Set(["buy", "sell", "invest", "lease"]);
 
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
@@ -25,17 +26,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ errors }, { status: 422 });
   }
 
-  // No CRM is connected yet, so enquiries are only logged on the server.
-  console.info("[enquiry]", {
+  // Save directly to the CRM backend (Supabase when configured in .env, or server fallback store)
+  const lead = await createLeadFromEnquiry({
     name,
     phone,
     email,
-    intent,
-    budget: body.budget,
-    city: body.city,
-    message: body.message,
-    receivedAt: new Date().toISOString(),
+    city: String(body.city ?? "").trim(),
+    intent: intent as LeadIntent,
+    budget: String(body.budget ?? "unsure"),
+    message: String(body.message ?? "").trim(),
+    source: "Website Form",
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, leadId: lead.id });
 }

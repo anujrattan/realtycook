@@ -1,16 +1,14 @@
 import type { LucideIcon } from "lucide-react";
-import {
-  Building2,
-  Globe2,
-  Home,
-  KeyRound,
-  LandPlot,
-  PieChart,
-} from "lucide-react";
+import { Construction, Home, KeyRound, LandPlot, Store } from "lucide-react";
 
 export type Mode = {
   id: string;
   title: string;
+  /** Short line shown beside the hero model. */
+  caption: string;
+  /** Proof point on the lower hero chip. */
+  proof: string;
+  detail: string;
   kicker: string;
   body: string;
   points: string[];
@@ -18,59 +16,73 @@ export type Mode = {
   tone: "red" | "ink" | "gold";
 };
 
+/**
+ * Order is the hero platter: Homes starts facing the camera, then Commercial,
+ * Upcoming projects and Land parcels as it turns.
+ */
 export const MODES: Mode[] = [
   {
-    id: "buy",
-    title: "Buy a home",
-    kicker: "Resale · New launch · Ready-to-move",
-    body: "Shortlists built around your commute, school run and budget, not whatever a portal wants to promote this week.",
-    points: ["RERA and title checks before you visit", "Home-loan tie-ups and eligibility check", "Negotiation done by us, not you"],
+    id: "homes",
+    title: "Homes",
+    caption: "High-rise, low-rise & kothis",
+    proof: "Shortlisted around how you live",
+    detail: "Ready-to-move · walked in person",
+    kicker: "High-rise · Low-rise · Kothis",
+    body: "High-rise apartments, low-rise builder floors and independent kothis shortlisted around how you live, not whatever a portal is pushing this week.",
+    points: ["Every home walked in person before you visit", "Home-loan tie-ups and eligibility check", "Negotiation done by us, not you"],
     icon: Home,
     tone: "red",
   },
   {
-    id: "sell",
-    title: "Sell your property",
-    kicker: "Pricing · Marketing · Closing",
-    body: "A price backed by recent registrations nearby, a listing that photographs well, and serious buyers only.",
-    points: ["Comparable-sales pricing report", "Professional shoot and listing", "Paperwork through to registration"],
-    icon: KeyRound,
+    id: "commercial",
+    title: "Commercial",
+    caption: "Retail shops & showrooms",
+    proof: "Frontage checked on site",
+    detail: "Main road · clear approach",
+    kicker: "Retail shops · Showrooms · Built-up",
+    body: "High-street retail shops and multi-floor showrooms, chosen for frontage, visibility and whether a business can actually thrive there.",
+    points: ["Frontage, visibility and footfall checked", "Clear approach and customer parking", "Purchase or sale structured through to registration"],
+    icon: Store,
     tone: "ink",
   },
   {
-    id: "invest",
-    title: "Invest for income",
-    kicker: "Pre-leased · Commercial · Retail",
-    body: "Office floors, retail units and warehouses with tenants in place, chosen for rental yield and lease strength.",
-    points: ["Tenant and lease-tenure diligence", "Yield and exit modelling", "Portfolio reviews every year"],
-    icon: Building2,
+    id: "upcoming",
+    title: "Upcoming projects",
+    caption: "Sites still coming up",
+    proof: "RERA registered",
+    detail: "Approvals read, not assumed",
+    kicker: "New launch · Under construction",
+    body: "Projects still coming up. The builder, the approvals and the possession date are checked before any money is committed.",
+    points: ["RERA registration and approvals", "Builder track record, not the brochure", "Possession date agreed in writing"],
+    icon: Construction,
     tone: "gold",
   },
   {
-    id: "fractional",
-    title: "Fractional ownership",
-    kicker: "Start smaller · Grade-A assets",
-    body: "Own a share of an institutional-grade property alongside other investors, with rental income paid out to you.",
-    points: ["Platform and SPV structure explained", "Side-by-side comparison of offerings", "Clear view of lock-ins and exit"],
-    icon: PieChart,
-    tone: "red",
-  },
-  {
-    id: "plots",
-    title: "Land & plots",
-    kicker: "Residential · Farm · Township",
-    body: "Plots in approved layouts where growth corridors are forming, with zoning and access verified on the ground.",
-    points: ["Layout approval and zoning checks", "Site visits with survey maps", "Long-horizon growth thesis"],
+    id: "land",
+    title: "Land parcels",
+    caption: "Plots held for growth",
+    proof: "Layout approved",
+    detail: "Zoning walked on the ground",
+    kicker: "Plotted · Held for growth",
+    body: "Land parcels in approved layouts, bought to hold, with zoning and access walked on the ground rather than taken from a brochure.",
+    points: ["Layout approval and zoning checks", "Site visits with the survey map", "A reason to hold, and when to exit"],
     icon: LandPlot,
     tone: "ink",
   },
   {
-    id: "nri",
-    title: "NRI desk",
-    kicker: "Remote buying · Management",
-    body: "Buy, sell or rent out property in India from abroad, with video walkthroughs and help with the documents you'll need.",
-    points: ["Virtual site visits", "Help with power of attorney and repatriation paperwork", "Tenant and upkeep management"],
-    icon: Globe2,
+    id: "leasing",
+    title: "Leasing",
+    caption: "Retail, office & residential leasing",
+    proof: "Tenant & lock-in vetted",
+    detail: "LOI · lock-in · registered lease",
+    kicker: "Retail · Office · Residential",
+    body: "Tenant placement, brand representation and end-to-end lease structuring for showrooms, corporate offices and residences—from LOI to registered lease deeds.",
+    points: [
+      "Tenant covenant, background and business-viability checks",
+      "Rent escalation, lock-in period and security deposit structuring",
+      "Fit-out terms, handover checklist and lease deed registration",
+    ],
+    icon: KeyRound,
     tone: "gold",
   },
 ];
@@ -89,7 +101,7 @@ export const STEPS = [
   {
     n: "03",
     title: "Cook the deal",
-    body: "We negotiate price and terms, arrange financing and set up the deal structure: joint ownership, NRI rules and tax implications.",
+    body: "We negotiate price and terms, arrange financing and set up the deal structure: joint ownership, tax implications and the paperwork through to registration.",
   },
   {
     n: "04",
@@ -189,10 +201,10 @@ export const COMPARE_ROWS: {
   broker: 0 | 1 | 2;
   us: 0 | 1 | 2;
 }[] = [
-  { label: "Buy, sell and invest under one roof", portal: 1, broker: 1, us: 2 },
-  { label: "Investment-grade analysis (yield, exit, lease)", portal: 0, broker: 0, us: 2 },
+  { label: "Buy, sell, invest and lease under one roof", portal: 1, broker: 1, us: 2 },
+  { label: "Investment & lease analysis (yield, lock-in, exit)", portal: 0, broker: 0, us: 2 },
   { label: "Title, RERA and approval checks before visits", portal: 0, broker: 1, us: 2 },
   { label: "One named advisor from search to registration", portal: 0, broker: 2, us: 2 },
   { label: "Fees and commissions in writing, upfront", portal: 1, broker: 0, us: 2 },
-  { label: "After-sale support: leasing, upkeep, resale", portal: 0, broker: 1, us: 2 },
+  { label: "After-sale support: leasing, upkeep & portfolio review", portal: 0, broker: 1, us: 2 },
 ];

@@ -1,4 +1,4 @@
-export type Intent = "buy" | "sell" | "invest" | "rent";
+export type Intent = "buy" | "sell" | "invest" | "lease";
 
 export const INTENT_EVENT = "realtycook:intent";
 

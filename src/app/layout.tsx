@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Kristi, Poppins } from "next/font/google";
+import { WhatsAppFloat } from "@/components/site/whatsapp-float";
 import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
@@ -13,8 +14,12 @@ const kristi = Kristi({ variable: "--font-kristi", subsets: ["latin"], weight: "
 export const metadata: Metadata = {
   title: "RealtyCook — Buy, sell & invest in real estate",
   description:
-    "RealtyCook helps you buy homes, sell at the right price and build a property portfolio — resale, new launch, pre-leased commercial, plots and fractional ownership, with one advisor from search to registration.",
+    "RealtyCook deals in flats, kothis and apartments, commercial land and shoprooms, upcoming projects and land parcels, with one advisor from search to registration.",
   applicationName: "RealtyCook",
+  icons: {
+    icon: [{ url: "/brand/RC_FavIcon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/brand/RC_FavIcon.svg", type: "image/svg+xml" }],
+  },
   openGraph: {
     title: "RealtyCook — Trust for growth",
     description: "Buy, sell and invest in real estate with one advisor, start to finish.",
@@ -32,7 +37,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${inter.variable} ${poppins.variable} ${kristi.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {children}
+        <WhatsAppFloat />
+      </body>
     </html>
   );
 }

@@ -1,22 +1,23 @@
-import { Monogram, Wordmark } from "@/components/brand/logo";
+import { Logo, Mark } from "@/components/brand/logo";
 
 const COLUMNS = [
   {
     title: "Services",
     links: [
-      { label: "Buy a home", href: "#modes" },
-      { label: "Sell your property", href: "#modes" },
-      { label: "Invest for income", href: "#modes" },
-      { label: "NRI desk", href: "#modes" },
+      { label: "Homes", href: "#modes" },
+      { label: "Commercial", href: "#modes" },
+      { label: "Upcoming projects", href: "#modes" },
+      { label: "Land parcels", href: "#modes" },
+      { label: "Leasing", href: "#modes" },
     ],
   },
   {
     title: "Explore",
     links: [
       { label: "How we work", href: "#process" },
-      { label: "Properties", href: "#listings" },
-      { label: "Returns calculator", href: "#calculator" },
       { label: "Why RealtyCook", href: "#why" },
+      { label: "Contact", href: "#contact" },
+      { label: "Advisor CRM", href: "/crm" },
     ],
   },
 ];
@@ -26,10 +27,9 @@ export function Footer() {
     <footer className="dark bg-background text-foreground">
       <div className="section grid gap-12 py-16 md:grid-cols-[1.3fr_1fr_1fr]">
         <div>
-          <Wordmark tagline inverted className="text-lg" />
+          <Logo inverted className="h-20 sm:h-24" />
           <p className="mt-6 max-w-sm text-sm leading-relaxed text-white/55">
-            RealtyCook advises on buying, selling, leasing and investing in residential and commercial real estate,
-            for buyers in India and NRIs abroad.
+            RealtyCook advises on homes, commercial shoprooms and plots, upcoming projects, land parcels and leasing.
           </p>
           <a href="#contact" className="mt-6 inline-flex rounded-full bg-brand-red px-5 py-2.5 text-sm font-semibold text-white shadow-red hover:bg-brand-red/90">
             Book a free consultation
@@ -54,7 +54,7 @@ export function Footer() {
         <div className="section flex flex-col items-start justify-between gap-4 py-6 text-xs text-white/40 sm:flex-row sm:items-center">
           <p>© 2026 RealtyCook. All rights reserved.</p>
           <p className="flex items-center gap-2">
-            <Monogram className="size-5 text-white" /> Property figures shown are indicative and subject to verification.
+            <Mark inverted className="h-6" /> Property figures shown are indicative and subject to verification.
           </p>
         </div>
       </div>
