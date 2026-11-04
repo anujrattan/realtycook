@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import {
+  addCrmProperty,
   addCrmUserWithRbac,
   addLeadComment,
   assignLeadWithRbac,
+  bulkCreateLeads,
   createOrMergeLead,
   getCrmSnapshot,
   type LeadIntent,
@@ -51,9 +53,56 @@ export async function POST(request: Request) {
       message: String(payload.message ?? "").trim(),
       source: String(payload.source ?? "Direct Entry"),
       assigned_to: payload.assignedTo ? String(payload.assignedTo) : null,
+      next_followup_at: payload.nextFollowupAt ? String(payload.nextFollowupAt) : null,
     });
     const snapshot = await getCrmSnapshot();
     return NextResponse.json({ ok: true, lead, snapshot });
+  }
+
+  if (action === "bulk_create_leads") {
+    const rawLeads = Array.isArray(payload.leads) ? payload.leads : [];
+    if (rawLeads.length === 0) {
+      return NextResponse.json({ error: "No valid leads found in uploaded sheet." }, { status: 422 });
+    }
+    const result = await bulkCreateLeads({
+      actorId,
+      leads: rawLeads as Array<{
+        name: string;
+        phone: string;
+        email?: string;
+        city?: string;
+        intent?: LeadIntent;
+        pillar?: ServicePillar;
+        budget?: string;
+        notes_summary?: string;
+        assigned_to?: string | null;
+        next_followup_at?: string | null;
+      }>,
+    });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 403 });
+    }
+    const snapshot = await getCrmSnapshot();
+    return NextResponse.json({ ok: true, importedCount: result.importedCount, snapshot });
+  }
+
+  if (action === "add_property") {
+    const result = await addCrmProperty({
+      actorId,
+      title: String(payload.title ?? ""),
+      pillar: (payload.pillar as ServicePillar) ?? "homes",
+      intent: (payload.intent as LeadIntent) ?? "buy",
+      locality: String(payload.locality ?? ""),
+      price_label: String(payload.price_label ?? ""),
+      budget_bracket: String(payload.budget_bracket ?? "1-3cr"),
+      specs: String(payload.specs ?? ""),
+      verification_badge: String(payload.verification_badge ?? "Ground Verified"),
+    });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 422 });
+    }
+    const snapshot = await getCrmSnapshot();
+    return NextResponse.json({ ok: true, property: result.property, snapshot });
   }
 
   if (action === "assign_lead") {
@@ -77,6 +126,18 @@ export async function POST(request: Request) {
       nextFollowupAt:
         payload.nextFollowupAt !== undefined
           ? (payload.nextFollowupAt as string | null)
+          : undefined,
+      siteVisitDate:
+        payload.siteVisitDate !== undefined
+          ? (payload.siteVisitDate as string | null)
+          : undefined,
+      siteVisitTime:
+        payload.siteVisitTime !== undefined
+          ? (payload.siteVisitTime as string | null)
+          : undefined,
+      siteVisitProperty:
+        payload.siteVisitProperty !== undefined
+          ? (payload.siteVisitProperty as string | null)
           : undefined,
     });
     if (!result.ok) {

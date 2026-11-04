@@ -5,7 +5,7 @@
  * 1. Frontend NEVER talks to Supabase directly. Frontend calls `/api/crm/*` or `/api/enquiry`.
  * 2. Backend reads `process.env.SUPABASE_URL` and `process.env.SUPABASE_SERVICE_ROLE_KEY` from `.env`.
  * 3. Uses Web-standard `fetch()` against Supabase PostgREST so it is 100% compatible with
- *    Cloudflare Workers / Pages Edge runtime (`@opennextjs/cloudflare`) with zero native Node deps.
+ *    Cloudflare Workers / Pages Edge runtime with zero native Node deps.
  * 4. When `SUPABASE_URL` is not yet configured in `.env`, seamlessly uses a persistent in-memory
  *    server store so local testing works immediately out of the box.
  */
@@ -60,6 +60,9 @@ export interface CrmLead {
   source: string;
   assigned_to: string | null;
   next_followup_at: string | null;
+  site_visit_date?: string | null;
+  site_visit_time?: string | null;
+  site_visit_property?: string | null;
   notes_summary: string;
   created_at: string;
   updated_at: string;
@@ -75,6 +78,10 @@ export interface CrmProperty {
   budget_bracket: string;
   specs: string;
   verification_badge: string;
+  added_by_id: string;
+  added_by_name: string;
+  added_by_role: UserRole;
+  created_at: string;
   active: boolean;
 }
 
@@ -157,10 +164,13 @@ const SEED_LEADS: CrmLead[] = [
     stage: "site_visit_scheduled",
     source: "Website Hero",
     assigned_to: "33333333-3333-4333-8333-333333333333",
-    next_followup_at: "2026-11-03T06:00:00.000Z",
-    notes_summary: "Looking for 4 BHK park-facing apartment or independent kothi. Site walk fixed for Saturday 11 AM.",
+    next_followup_at: "2026-11-03T11:00:00.000Z",
+    site_visit_date: "2026-11-07",
+    site_visit_time: "11:00",
+    site_visit_property: "Park-Facing 4 BHK Residence (Sector 65, Gurugram)",
+    notes_summary: "Looking for 4 BHK park-facing apartment or independent kothi. Follow-up call pending after site visit.",
     created_at: "2026-10-30T10:00:00.000Z",
-    updated_at: "2026-11-02T10:00:00.000Z",
+    updated_at: "2026-11-03T10:00:00.000Z",
   },
   {
     id: "lead-102",
@@ -174,10 +184,10 @@ const SEED_LEADS: CrmLead[] = [
     stage: "shortlist_shared",
     source: "Website Contact",
     assigned_to: "44444444-4444-4444-8444-444444444444",
-    next_followup_at: "2026-11-03T09:00:00.000Z",
+    next_followup_at: "2026-11-04T10:30:00.000Z",
     notes_summary: "Wants a main-road double-height showroom with clear parking. Shared 2 verified options on WhatsApp.",
     created_at: "2026-10-31T10:00:00.000Z",
-    updated_at: "2026-11-02T08:00:00.000Z",
+    updated_at: "2026-11-04T06:00:00.000Z",
   },
   {
     id: "lead-103",
@@ -191,10 +201,10 @@ const SEED_LEADS: CrmLead[] = [
     stage: "mandate_locked",
     source: "WhatsApp Bubble",
     assigned_to: "55555555-5555-4555-8555-555555555555",
-    next_followup_at: "2026-11-03T12:00:00.000Z",
+    next_followup_at: "2026-11-04T12:30:00.000Z",
     notes_summary: "Looking for 250–300 sq.yd approved plot on 30m sector road for 5-year hold.",
     created_at: "2026-11-01T10:00:00.000Z",
-    updated_at: "2026-11-02T12:00:00.000Z",
+    updated_at: "2026-11-04T07:00:00.000Z",
   },
   {
     id: "lead-104",
@@ -208,10 +218,10 @@ const SEED_LEADS: CrmLead[] = [
     stage: "negotiation",
     source: "Direct Referral",
     assigned_to: "44444444-4444-4444-8444-444444444444",
-    next_followup_at: "2026-11-03T05:30:00.000Z",
+    next_followup_at: "2026-11-05T11:00:00.000Z",
     notes_summary: "Need 1,800 sq.ft ground-floor space on 9-year lease with 3-year lock-in. Finalising LOI terms.",
     created_at: "2026-10-29T10:00:00.000Z",
-    updated_at: "2026-11-02T13:00:00.000Z",
+    updated_at: "2026-11-04T08:00:00.000Z",
   },
   {
     id: "lead-105",
@@ -224,11 +234,28 @@ const SEED_LEADS: CrmLead[] = [
     budget: "1-3cr",
     stage: "new_enquiry",
     source: "Website Contact",
-    assigned_to: null,
-    next_followup_at: "2026-11-02T18:00:00.000Z",
+    assigned_to: "22222222-2222-4222-8222-222222222222",
+    next_followup_at: "2026-11-03T15:00:00.000Z",
     notes_summary: "Enquired about RERA-verified 3 BHK new launch with construction-linked payment plan.",
     created_at: "2026-11-02T14:00:00.000Z",
     updated_at: "2026-11-02T14:00:00.000Z",
+  },
+  {
+    id: "lead-106",
+    name: "Vikramaditya Sodhi",
+    phone: "919877001122",
+    email: "vsodhi@sodhigroup.com",
+    city: "Sector 9, Chandigarh",
+    intent: "buy",
+    pillar: "homes",
+    budget: "10cr-plus",
+    stage: "negotiation",
+    source: "Direct Referral",
+    assigned_to: "22222222-2222-4222-8222-222222222222",
+    next_followup_at: "2026-11-06T10:00:00.000Z",
+    notes_summary: "1 Kanal freehold kothi requirement. Reviewing title search and mutation history with legal desk.",
+    created_at: "2026-11-01T11:30:00.000Z",
+    updated_at: "2026-11-04T07:30:00.000Z",
   },
 ];
 
@@ -240,7 +267,7 @@ const SEED_COMMENTS: CrmLeadComment[] = [
     author_name: "Karan Yadav",
     author_role: "admin",
     body: "Spoke to Mr. Malhotra. He prefers a ready-to-move 4 BHK with OC received. Assigned to Riya for Saturday site walk.",
-    followup_scheduled_for: "2026-11-03T06:00:00.000Z",
+    followup_scheduled_for: "2026-11-03T11:00:00.000Z",
     created_at: "2026-10-31T10:00:00.000Z",
   },
   {
@@ -249,8 +276,8 @@ const SEED_COMMENTS: CrmLeadComment[] = [
     author_id: "33333333-3333-4333-8333-333333333333",
     author_name: "Riya Sharma",
     author_role: "sales",
-    body: "Shared floor plans and real sun-path video on WhatsApp. Confirmed Saturday 11:00 AM visit with society manager.",
-    followup_scheduled_for: "2026-11-03T06:00:00.000Z",
+    body: "Shared floor plans and real sun-path video on WhatsApp. Confirmed site visit with society manager.",
+    followup_scheduled_for: "2026-11-03T11:00:00.000Z",
     created_at: "2026-11-02T10:00:00.000Z",
   },
   {
@@ -260,8 +287,8 @@ const SEED_COMMENTS: CrmLeadComment[] = [
     author_name: "Aman Verma",
     author_role: "sales",
     body: "Landlord agreed to 45-day rent-free fit-out period and 15% escalation every 3 years. Sending draft LOI today.",
-    followup_scheduled_for: "2026-11-03T05:30:00.000Z",
-    created_at: "2026-11-02T13:00:00.000Z",
+    followup_scheduled_for: "2026-11-05T11:00:00.000Z",
+    created_at: "2026-11-04T08:00:00.000Z",
   },
 ];
 
@@ -276,6 +303,10 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "3-10cr",
     specs: "2,180 sq.ft carpet · OC Received · 2 Parking",
     verification_badge: "OC & Title Verified",
+    added_by_id: "22222222-2222-4222-8222-222222222222",
+    added_by_name: "Karan Yadav",
+    added_by_role: "admin",
+    created_at: "2026-10-12T10:00:00.000Z",
     active: true,
   },
   {
@@ -288,6 +319,10 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "3-10cr",
     specs: "300 sq.yd plot · 4,100 sq.ft built · Park facing",
     verification_badge: "Freehold & Walked",
+    added_by_id: "33333333-3333-4333-8333-333333333333",
+    added_by_name: "Riya Sharma",
+    added_by_role: "sales",
+    created_at: "2026-10-15T14:20:00.000Z",
     active: true,
   },
   {
@@ -300,6 +335,10 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "3-10cr",
     specs: "1,850 sq.ft · 28 ft frontage · Main road parking",
     verification_badge: "Frontage & NOC Checked",
+    added_by_id: "44444444-4444-4444-8444-444444444444",
+    added_by_name: "Aman Verma",
+    added_by_role: "sales",
+    created_at: "2026-10-18T11:30:00.000Z",
     active: true,
   },
   {
@@ -312,6 +351,10 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "1-3cr",
     specs: "265 sq.yd · 30m road approach · Approved layout",
     verification_badge: "Boundary Pillars Walked",
+    added_by_id: "55555555-5555-4555-8555-555555555555",
+    added_by_name: "Vikram Singh",
+    added_by_role: "sales",
+    created_at: "2026-10-21T09:45:00.000Z",
     active: true,
   },
   {
@@ -324,6 +367,10 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "1-3cr",
     specs: "1,640 sq.ft carpet · 30:40:30 payment plan",
     verification_badge: "RERA & Escrow Audited",
+    added_by_id: "11111111-1111-4111-8111-111111111111",
+    added_by_name: "Anuj (Superadmin)",
+    added_by_role: "superadmin",
+    created_at: "2026-10-25T16:10:00.000Z",
     active: true,
   },
   {
@@ -336,6 +383,10 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "50l-1cr",
     specs: "1,800 sq.ft · Wet point · 9-yr registered lease",
     verification_badge: "Ready for Fit-Out",
+    added_by_id: "44444444-4444-4444-8444-444444444444",
+    added_by_name: "Aman Verma",
+    added_by_role: "sales",
+    created_at: "2026-10-28T12:00:00.000Z",
     active: true,
   },
 ];
@@ -398,7 +449,7 @@ export async function getCrmSnapshot(): Promise<CrmStateSnapshot> {
         sbFetch<CrmUser[]>("crm_users?active=eq.true&order=created_at.asc"),
         sbFetch<CrmLead[]>("crm_leads?order=updated_at.desc"),
         sbFetch<CrmLeadComment[]>("crm_lead_comments?order=created_at.desc"),
-        sbFetch<CrmProperty[]>("crm_properties?active=eq.true&order=created_at.asc"),
+        sbFetch<CrmProperty[]>("crm_properties?active=eq.true&order=created_at.desc"),
       ]);
       return {
         storageMode: "supabase",
@@ -420,7 +471,7 @@ export async function getCrmSnapshot(): Promise<CrmStateSnapshot> {
     users: mem.users.filter((u) => u.active),
     leads: [...mem.leads].sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
     comments: [...mem.comments].sort((a, b) => b.created_at.localeCompare(a.created_at)),
-    properties: mem.properties.filter((p) => p.active),
+    properties: [...mem.properties].filter((p) => p.active).sort((a, b) => b.created_at.localeCompare(a.created_at)),
   };
 }
 
@@ -435,6 +486,7 @@ export async function createOrMergeLead(input: {
   message?: string;
   source?: string;
   assigned_to?: string | null;
+  next_followup_at?: string | null;
 }): Promise<CrmLead> {
   const cleanPhone = input.phone.replace(/\D/g, "");
   const normalizedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
@@ -445,6 +497,8 @@ export async function createOrMergeLead(input: {
       : input.intent === "invest"
         ? "commercial"
         : "homes");
+
+  const followupIso = input.next_followup_at ?? new Date(Date.now() + 2 * 3600 * 1000).toISOString();
 
   const cfg = getSupabaseConfig();
   if (cfg.enabled) {
@@ -462,7 +516,7 @@ export async function createOrMergeLead(input: {
           stage: "new_enquiry",
           source: input.source ?? "Website Contact",
           assigned_to: input.assigned_to ?? null,
-          next_followup_at: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
+          next_followup_at: followupIso,
           notes_summary: input.message ?? "",
         }),
       });
@@ -484,13 +538,13 @@ export async function createOrMergeLead(input: {
     if (input.message) {
       existing.notes_summary = input.message;
       mem.comments.unshift({
-        id: `c-${Date.now()}`,
+        id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         lead_id: existing.id,
         author_id: "system",
-        author_name: "Website Enquiry",
+        author_name: "Lead Intake",
         author_role: "admin",
-        body: `Repeat enquiry (${input.intent.toUpperCase()}): ${input.message}`,
-        followup_scheduled_for: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
+        body: `Updated / Repeat enquiry (${input.intent.toUpperCase()}): ${input.message}`,
+        followup_scheduled_for: followupIso,
         created_at: now,
       });
     }
@@ -498,7 +552,7 @@ export async function createOrMergeLead(input: {
   }
 
   const newLead: CrmLead = {
-    id: `lead-${Date.now()}`,
+    id: `lead-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     name: input.name,
     phone: normalizedPhone,
     email: input.email ?? "",
@@ -509,13 +563,151 @@ export async function createOrMergeLead(input: {
     stage: "new_enquiry",
     source: input.source ?? "Website Contact",
     assigned_to: input.assigned_to ?? null,
-    next_followup_at: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
-    notes_summary: input.message ?? "New enquiry received from website.",
+    next_followup_at: followupIso,
+    site_visit_date: null,
+    site_visit_time: null,
+    site_visit_property: null,
+    notes_summary: input.message ?? "New enquiry received.",
     created_at: now,
     updated_at: now,
   };
   mem.leads.unshift(newLead);
   return newLead;
+}
+
+export async function bulkCreateLeads(params: {
+  actorId: string;
+  leads: Array<{
+    name: string;
+    phone: string;
+    email?: string;
+    city?: string;
+    intent?: LeadIntent;
+    pillar?: ServicePillar;
+    budget?: string;
+    notes_summary?: string;
+    assigned_to?: string | null;
+    next_followup_at?: string | null;
+  }>;
+}): Promise<{ ok: true; importedCount: number } | { ok: false; error: string }> {
+  const snap = await getCrmSnapshot();
+  const actor = snap.users.find((u) => u.id === params.actorId);
+  if (!actor) return { ok: false, error: "Unauthorized actor." };
+
+  let importedCount = 0;
+  for (const row of params.leads) {
+    const cleanName = String(row.name ?? "").trim();
+    const cleanPhone = String(row.phone ?? "").replace(/\D/g, "");
+    if (cleanName.length < 2 || cleanPhone.length < 10) continue;
+
+    const assignedTo =
+      row.assigned_to !== undefined
+        ? row.assigned_to
+        : actor.role === "sales"
+          ? actor.id
+          : null;
+
+    const created = await createOrMergeLead({
+      name: cleanName,
+      phone: cleanPhone,
+      email: String(row.email ?? "").trim(),
+      city: String(row.city ?? "").trim(),
+      intent: (row.intent as LeadIntent) ?? "buy",
+      pillar: (row.pillar as ServicePillar) ?? "homes",
+      budget: String(row.budget ?? "1-3cr"),
+      message: String(row.notes_summary ?? "Imported via Excel Bulk Upload").trim(),
+      source: `Excel Upload (${actor.name})`,
+      assigned_to: assignedTo,
+      next_followup_at: row.next_followup_at ?? new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
+    });
+
+    const mem = getMemoryStore();
+    mem.comments.unshift({
+      id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      lead_id: created.id,
+      author_id: actor.id,
+      author_name: actor.name,
+      author_role: actor.role,
+      body: `Bulk imported lead via Excel sheet.`,
+      followup_scheduled_for: created.next_followup_at,
+      created_at: new Date().toISOString(),
+    });
+
+    importedCount++;
+  }
+
+  return { ok: true, importedCount };
+}
+
+export async function addCrmProperty(params: {
+  actorId: string;
+  title: string;
+  pillar: ServicePillar;
+  intent: LeadIntent;
+  locality: string;
+  price_label: string;
+  budget_bracket: string;
+  specs: string;
+  verification_badge: string;
+}): Promise<{ ok: true; property: CrmProperty } | { ok: false; error: string }> {
+  const snap = await getCrmSnapshot();
+  const actor = snap.users.find((u) => u.id === params.actorId);
+  if (!actor) return { ok: false, error: "Unauthorized actor." };
+
+  const title = params.title.trim();
+  const locality = params.locality.trim();
+  const price_label = params.price_label.trim();
+  if (title.length < 3 || locality.length < 2 || !price_label) {
+    return { ok: false, error: "Property title, locality, and price label are required." };
+  }
+
+  const now = new Date().toISOString();
+  const cfg = getSupabaseConfig();
+
+  if (cfg.enabled) {
+    try {
+      const inserted = await sbFetch<CrmProperty[]>("crm_properties", {
+        method: "POST",
+        body: JSON.stringify({
+          title,
+          pillar: params.pillar,
+          intent: params.intent,
+          locality,
+          price_label,
+          budget_bracket: params.budget_bracket || "1-3cr",
+          specs: params.specs.trim() || "Verified RealtyCook Mandate",
+          verification_badge: params.verification_badge.trim() || "Ground Verified",
+          added_by_id: actor.id,
+          added_by_name: actor.name,
+          added_by_role: actor.role,
+          active: true,
+        }),
+      });
+      if (inserted[0]) return { ok: true, property: inserted[0] };
+    } catch (err) {
+      console.warn("[crm-store] Supabase property insert failed, using memory store:", err);
+    }
+  }
+
+  const mem = getMemoryStore();
+  const newProp: CrmProperty = {
+    id: `prop-${Date.now()}`,
+    title,
+    pillar: params.pillar,
+    intent: params.intent,
+    locality,
+    price_label,
+    budget_bracket: params.budget_bracket || "1-3cr",
+    specs: params.specs.trim() || "Verified RealtyCook Mandate",
+    verification_badge: params.verification_badge.trim() || "Ground Verified",
+    added_by_id: actor.id,
+    added_by_name: actor.name,
+    added_by_role: actor.role,
+    created_at: now,
+    active: true,
+  };
+  mem.properties.unshift(newProp);
+  return { ok: true, property: newProp };
 }
 
 export async function assignLeadWithRbac(params: {
@@ -586,6 +778,9 @@ export async function updateLeadStageOrFollowup(params: {
   leadId: string;
   stage?: LeadStage;
   nextFollowupAt?: string | null;
+  siteVisitDate?: string | null;
+  siteVisitTime?: string | null;
+  siteVisitProperty?: string | null;
 }): Promise<{ ok: true; lead: CrmLead } | { ok: false; error: string }> {
   const snap = await getCrmSnapshot();
   const actor = snap.users.find((u) => u.id === params.actorId);
@@ -599,6 +794,9 @@ export async function updateLeadStageOrFollowup(params: {
       const patch: Record<string, unknown> = { updated_at: now };
       if (params.stage) patch.stage = params.stage;
       if (params.nextFollowupAt !== undefined) patch.next_followup_at = params.nextFollowupAt;
+      if (params.siteVisitDate !== undefined) patch.site_visit_date = params.siteVisitDate;
+      if (params.siteVisitTime !== undefined) patch.site_visit_time = params.siteVisitTime;
+      if (params.siteVisitProperty !== undefined) patch.site_visit_property = params.siteVisitProperty;
       const updated = await sbFetch<CrmLead[]>(`crm_leads?id=eq.${encodeURIComponent(params.leadId)}`, {
         method: "PATCH",
         body: JSON.stringify(patch),
@@ -613,9 +811,39 @@ export async function updateLeadStageOrFollowup(params: {
   const lead = mem.leads.find((l) => l.id === params.leadId);
   if (!lead) return { ok: false, error: "Lead not found." };
 
+  const previousStage = lead.stage;
   if (params.stage) lead.stage = params.stage;
   if (params.nextFollowupAt !== undefined) lead.next_followup_at = params.nextFollowupAt;
+  if (params.siteVisitDate !== undefined) lead.site_visit_date = params.siteVisitDate;
+  if (params.siteVisitTime !== undefined) lead.site_visit_time = params.siteVisitTime;
+  if (params.siteVisitProperty !== undefined) lead.site_visit_property = params.siteVisitProperty;
   lead.updated_at = now;
+
+  if (params.siteVisitDate) {
+    const timeLabel = params.siteVisitTime ? ` at ${params.siteVisitTime}` : " (time flexible)";
+    const propLabel = params.siteVisitProperty ? ` for ${params.siteVisitProperty}` : "";
+    mem.comments.unshift({
+      id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      lead_id: lead.id,
+      author_id: actor.id,
+      author_name: actor.name,
+      author_role: actor.role,
+      body: `Scheduled Site Visit on ${params.siteVisitDate}${timeLabel}${propLabel}.`,
+      followup_scheduled_for: lead.next_followup_at,
+      created_at: now,
+    });
+  } else if (params.stage && params.stage !== previousStage) {
+    mem.comments.unshift({
+      id: `c-${Date.now()}`,
+      lead_id: lead.id,
+      author_id: actor.id,
+      author_name: actor.name,
+      author_role: actor.role,
+      body: `Moved stage from ${previousStage.replace(/_/g, " ")} → ${params.stage.replace(/_/g, " ")}.`,
+      followup_scheduled_for: lead.next_followup_at,
+      created_at: now,
+    });
+  }
 
   return { ok: true, lead };
 }
