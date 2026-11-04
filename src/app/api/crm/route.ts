@@ -9,6 +9,7 @@ import {
   getCrmSnapshot,
   type LeadIntent,
   type LeadStage,
+  type StageReason,
   removeCrmUserWithRbac,
   type ServicePillar,
   type UserRole,
@@ -123,6 +124,10 @@ export async function POST(request: Request) {
       actorId,
       leadId: String(payload.leadId ?? ""),
       stage: payload.stage as LeadStage | undefined,
+      closureReason:
+        payload.closureReason !== undefined
+          ? (payload.closureReason as StageReason | null)
+          : undefined,
       nextFollowupAt:
         payload.nextFollowupAt !== undefined
           ? (payload.nextFollowupAt as string | null)

@@ -33,18 +33,33 @@ create table if not exists public.crm_leads (
   stage text not null default 'new_enquiry' check (
     stage in (
       'new_enquiry',
-      'mandate_locked',
-      'shortlist_shared',
+      'contacted',
+      'meeting',
       'site_visit_scheduled',
       'negotiation',
-      'paperwork_registry',
-      'closed_won',
-      'lost_hold'
+      'closed'
     )
   ),
   source text not null default 'website',
   assigned_to uuid references public.crm_users(id) on delete set null,
   next_followup_at timestamptz,
+  closure_reason text check (
+    closure_reason is null or closure_reason in (
+      'interested',
+      'no_answer',
+      'switched_off',
+      'busy_rejected',
+      'callback_requested',
+      'not_interested',
+      'already_purchased',
+      'budget_mismatch',
+      'wrong_requirement',
+      'duplicate',
+      'deal_won',
+      'deal_lost',
+      'other'
+    )
+  ),
   notes_summary text default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

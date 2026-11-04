@@ -7,6 +7,7 @@ import {
   CrmAddPropertyModal,
   CrmBulkUploadModal,
   CrmNewLeadModal,
+  CrmStageReasonModal,
 } from "@/components/crm/crm-action-modals";
 import { CrmDashboardPanel } from "@/components/crm/crm-dashboard-panel";
 import { CrmFollowupToast } from "@/components/crm/crm-followup-toast";
@@ -19,9 +20,13 @@ import {
   type FollowupBucket,
   classifyFollowup,
   followupKey,
+  getStageReasonOption,
   normalizeBudget,
   normalizeIntent,
+  normalizeLeadStage,
   normalizePillar,
+  normalizeStageReason,
+  stageRequiresReason,
 } from "@/components/crm/crm-shared";
 import { CrmSidebar } from "@/components/crm/crm-sidebar";
 import { CrmTeamView } from "@/components/crm/crm-team-view";
@@ -34,6 +39,7 @@ import type {
   LeadIntent,
   LeadStage,
   ServicePillar,
+  StageReason,
   UserRole,
 } from "@/lib/crm-store";
 import { cn } from "@/lib/utils";
@@ -42,7 +48,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
   const [snapshot, setSnapshot] = useState<CrmStateSnapshot>(initialSnapshot);
   const [nowMs, setNowMs] = useState<number | null>(null);
   const [actorId, setActorId] = useState<string>(initialSnapshot.users[0]?.id ?? "");
-  const [activeTab, setActiveTab] = useState<CrmNavId>("pipeline");
+  const [activeTab, setActiveTab] = useState<CrmNavId>("dashboard");
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
   const [followupBucket, setFollowupBucket] = useState<FollowupBucket>("all");
 
@@ -65,6 +71,10 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
   const [showNewLead, setShowNewLead] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [showAddProperty, setShowAddProperty] = useState(false);
+  const [pendingStageChange, setPendingStageChange] = useState<{
+    leadId: string;
+    targetStage: LeadStage;
+  } | null>(null);
   const [bulkPreviewCount, setBulkPreviewCount] = useState(0);
   const [bulkRows, setBulkRows] = useState<
     Array<{
@@ -220,7 +230,16 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
       const saved = window.localStorage.getItem("rc_crm_snapshot_v2");
       if (saved) {
         const parsed = JSON.parse(saved) as CrmStateSnapshot;
-        if (parsed?.users?.length && parsed?.leads?.length) setSnapshot(parsed);
+        if (parsed?.users?.length && parsed?.leads?.length) {
+          setSnapshot({
+            ...parsed,
+            leads: parsed.leads.map((lead) => ({
+              ...lead,
+              stage: normalizeLeadStage(lead.stage),
+              closure_reason: normalizeStageReason(lead.closure_reason, lead.stage),
+            })),
+          });
+        }
       }
     } catch {
       // ignore
@@ -321,6 +340,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
         site_visit_date: null,
         site_visit_time: null,
         site_visit_property: null,
+        closure_reason: null,
         notes_summary: String(body.message ?? "New enquiry logged.").trim(),
         created_at: now,
         updated_at: now,
@@ -352,6 +372,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
           site_visit_date: null,
           site_visit_time: null,
           site_visit_property: null,
+          closure_reason: null,
           notes_summary: String(row.notes_summary ?? "Imported via Excel Bulk Upload"),
           created_at: now,
           updated_at: now,
@@ -416,13 +437,29 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
     if (action === "update_stage") {
       const leadId = String(body.leadId ?? "");
       const stage = body.stage as LeadStage | undefined;
+      const closureReason =
+        body.closureReason !== undefined
+          ? (body.closureReason as StageReason | null)
+          : undefined;
+      if ((stage === "closed" || stage === "contacted") && !closureReason) {
+        setBannerError("Pick a reason for this status before saving.");
+        return false;
+      }
       saveLocalSnapshot({
         ...snapshot,
         leads: snapshot.leads.map((l) => {
           if (l.id !== leadId) return l;
-          const next = {
+          const nextStage = stage ?? l.stage;
+          const keepReason =
+            nextStage === "closed" ||
+            nextStage === "contacted" ||
+            nextStage === "new_enquiry";
+          return {
             ...l,
-            stage: stage ?? l.stage,
+            stage: nextStage,
+            closure_reason: keepReason
+              ? (closureReason !== undefined ? closureReason : l.closure_reason)
+              : null,
             next_followup_at:
               body.nextFollowupAt !== undefined
                 ? (body.nextFollowupAt as string | null)
@@ -441,7 +478,6 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
                 : l.site_visit_property,
             updated_at: now,
           };
-          return next;
         }),
         comments:
           body.siteVisitDate
@@ -468,7 +504,9 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
                     author_id: actor.id,
                     author_name: actor.name,
                     author_role: actor.role,
-                    body: `Moved stage → ${String(stage).replace(/_/g, " ")}.`,
+                    body: `Moved stage → ${String(stage).replace(/_/g, " ")}${
+                      closureReason ? ` (${String(closureReason).replace(/_/g, " ")})` : ""
+                    }.`,
                     followup_scheduled_for: null,
                     created_at: now,
                   },
@@ -693,12 +731,44 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
     setDraggingLeadId(null);
     setDropStageId(null);
     if (!lead || lead.stage === targetStage) return;
+    if (stageRequiresReason(targetStage)) {
+      setPendingStageChange({ leadId: lead.id, targetStage });
+      return;
+    }
     await postCrmAction({
       action: "update_stage",
       leadId: lead.id,
       stage: targetStage,
+      closureReason: null,
     });
     setSelectedLeadId(lead.id);
+  }
+
+  async function handleStageReason(reason: StageReason) {
+    if (!pendingStageChange) return;
+    const option = getStageReasonOption(reason);
+    if (!option) return;
+
+    const nextFollowupAt = option.schedulesFollowup
+      ? new Date(Date.now() + 24 * 3600 * 1000).toISOString()
+      : undefined;
+
+    const ok = await postCrmAction({
+      action: "update_stage",
+      leadId: pendingStageChange.leadId,
+      stage: option.resultsIn,
+      closureReason: reason,
+      ...(nextFollowupAt ? { nextFollowupAt } : {}),
+    });
+    if (ok) {
+      setSelectedLeadId(pendingStageChange.leadId);
+      setPendingStageChange(null);
+      setBannerSuccess(
+        option.schedulesFollowup
+          ? "Call outcome saved. Follow-up set for tomorrow."
+          : "Status and reason saved.",
+      );
+    }
   }
 
   function parseExcelFile(file: File) {
@@ -766,7 +836,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
       subtitle: "Any CRM user can add properties. Each card shows who added it.",
     },
     team: {
-      title: "Team & Roles",
+      title: "User Management",
       subtitle: "Manage Superadmin, Admin, and Sales accounts.",
     },
     dashboard: {
@@ -780,7 +850,6 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
       <CrmSidebar
         activeNav={activeTab}
         onNavigate={setActiveTab}
-        isSuperadmin={actor?.role === "superadmin"}
         counts={{
           pipeline: snapshot.leads.length,
           followups: myFollowups.today.length + myFollowups.missed.length,
@@ -801,10 +870,6 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
             setActorId(id);
             setHandledFollowupKeys(new Set());
             setFollowupPopup(null);
-            const nextActor = snapshot.users.find((u) => u.id === id);
-            if (nextActor?.role !== "superadmin" && activeTab === "dashboard") {
-              setActiveTab("pipeline");
-            }
           }}
           onBulkUpload={() => setShowBulkUpload(true)}
           onNewLead={() => setShowNewLead(true)}
@@ -897,7 +962,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
             />
           )}
 
-          {activeTab === "dashboard" && actor?.role === "superadmin" && (
+          {activeTab === "dashboard" && (
             <CrmDashboardPanel
               myFollowups={myFollowups}
               recentActivity={recentActivity}
@@ -935,9 +1000,18 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
           siteVisitProperty={siteVisitProperty}
           setSiteVisitProperty={setSiteVisitProperty}
           onSubmitSiteVisit={handleSaveSiteVisit}
-          onUpdateStage={(stage) =>
-            postCrmAction({ action: "update_stage", leadId: selectedLead.id, stage })
-          }
+          onUpdateStage={(stage) => {
+            if (stageRequiresReason(stage)) {
+              setPendingStageChange({ leadId: selectedLead.id, targetStage: stage });
+              return;
+            }
+            void postCrmAction({
+              action: "update_stage",
+              leadId: selectedLead.id,
+              stage,
+              closureReason: null,
+            });
+          }}
           onAssignLead={(targetUserId) =>
             postCrmAction({ action: "assign_lead", leadId: selectedLead.id, targetUserId })
           }
@@ -987,6 +1061,19 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
         form={propertyForm}
         setForm={setPropertyForm}
         onSubmit={handleAddProperty}
+      />
+
+      <CrmStageReasonModal
+        key={`${pendingStageChange?.leadId ?? "none"}-${pendingStageChange?.targetStage ?? "none"}`}
+        open={Boolean(pendingStageChange)}
+        leadName={
+          snapshot.leads.find((lead) => lead.id === pendingStageChange?.leadId)?.name ??
+          "this lead"
+        }
+        targetStage={pendingStageChange?.targetStage ?? "closed"}
+        busy={busy}
+        onClose={() => setPendingStageChange(null)}
+        onConfirm={handleStageReason}
       />
     </div>
   );

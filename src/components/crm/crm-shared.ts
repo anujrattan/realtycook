@@ -1,15 +1,159 @@
-import type { CrmLead, LeadIntent, LeadStage, ServicePillar } from "@/lib/crm-store";
+import type {
+  CrmLead,
+  LeadIntent,
+  LeadStage,
+  ServicePillar,
+  StageReason,
+} from "@/lib/crm-store";
+export { normalizeLeadStage, normalizeStageReason } from "@/lib/crm-store";
 
 export const STAGES: { id: LeadStage; num: string; label: string; color: string }[] = [
-  { id: "new_enquiry", num: "01", label: "New Enquiry", color: "bg-brand-red text-white" },
-  { id: "mandate_locked", num: "02", label: "Mandate Locked", color: "bg-amber-500 text-ink" },
-  { id: "shortlist_shared", num: "03", label: "Shortlist Shared", color: "bg-sky-500 text-white" },
+  { id: "new_enquiry", num: "01", label: "New", color: "bg-brand-red text-white" },
+  { id: "contacted", num: "02", label: "Contacted", color: "bg-amber-500 text-ink" },
+  { id: "meeting", num: "03", label: "Meeting", color: "bg-sky-500 text-white" },
   { id: "site_visit_scheduled", num: "04", label: "Site Visit", color: "bg-indigo-500 text-white" },
   { id: "negotiation", num: "05", label: "Negotiation", color: "bg-purple-500 text-white" },
-  { id: "paperwork_registry", num: "06", label: "Registry / Lease", color: "bg-emerald-600 text-white" },
-  { id: "closed_won", num: "07", label: "Closed Won", color: "bg-emerald-500 text-ink" },
-  { id: "lost_hold", num: "08", label: "On Hold / Lost", color: "bg-stone-500 text-white" },
+  { id: "closed", num: "06", label: "Closed", color: "bg-stone-600 text-white" },
 ];
+
+export type StageReasonOption = {
+  id: StageReason;
+  label: string;
+  hint: string;
+  /** Actual pipeline stage saved after this reason is chosen */
+  resultsIn: LeadStage;
+  /** Busy / no-answer / callback style outcomes create a retry follow-up */
+  schedulesFollowup?: boolean;
+  group: string;
+};
+
+/**
+ * Reasons appear only for the status the advisor selected.
+ * Contacted = call outcomes. Closed = exit / deal outcomes.
+ * Meeting / Site Visit / Negotiation take no reason.
+ */
+export const REASONS_BY_STAGE: Partial<Record<LeadStage, StageReasonOption[]>> = {
+  contacted: [
+    {
+      id: "interested",
+      label: "Picked up — interested, continue",
+      hint: "Live conversation happened. Move forward to Meeting next.",
+      resultsIn: "contacted",
+      group: "Connected",
+    },
+    {
+      id: "callback_requested",
+      label: "Callback requested",
+      hint: "They asked to talk later. Stay Contacted and schedule a follow-up.",
+      resultsIn: "contacted",
+      schedulesFollowup: true,
+      group: "Connected",
+    },
+    {
+      id: "no_answer",
+      label: "No answer",
+      hint: "Did not connect. Lead stays New with a follow-up retry.",
+      resultsIn: "new_enquiry",
+      schedulesFollowup: true,
+      group: "Retry later",
+    },
+    {
+      id: "switched_off",
+      label: "Switched off / not reachable",
+      hint: "Phone unavailable. Lead stays New with a follow-up retry.",
+      resultsIn: "new_enquiry",
+      schedulesFollowup: true,
+      group: "Retry later",
+    },
+    {
+      id: "busy_rejected",
+      label: "Busy / rejected the call",
+      hint: "Yes — this is a follow-up, not a close. Lead stays New.",
+      resultsIn: "new_enquiry",
+      schedulesFollowup: true,
+      group: "Retry later",
+    },
+  ],
+  closed: [
+    {
+      id: "not_interested",
+      label: "Not interested / denied",
+      hint: "Picked up and declined, or later said no.",
+      resultsIn: "closed",
+      group: "Early exit",
+    },
+    {
+      id: "already_purchased",
+      label: "Already purchased a property",
+      hint: "Requirement already fulfilled elsewhere.",
+      resultsIn: "closed",
+      group: "Early exit",
+    },
+    {
+      id: "budget_mismatch",
+      label: "Budget mismatch",
+      hint: "Cannot match budget after discussion.",
+      resultsIn: "closed",
+      group: "Early exit",
+    },
+    {
+      id: "wrong_requirement",
+      label: "Requirement not a fit",
+      hint: "Product / location / type does not match what we offer.",
+      resultsIn: "closed",
+      group: "Early exit",
+    },
+    {
+      id: "duplicate",
+      label: "Duplicate lead",
+      hint: "Same person already exists in the pipeline.",
+      resultsIn: "closed",
+      group: "Early exit",
+    },
+    {
+      id: "other",
+      label: "Other",
+      hint: "Capture detail in notes if needed.",
+      resultsIn: "closed",
+      group: "Early exit",
+    },
+    {
+      id: "deal_won",
+      label: "Deal won",
+      hint: "Customer finalised. Legal / registry continues outside CRM.",
+      resultsIn: "closed",
+      group: "After negotiation",
+    },
+    {
+      id: "deal_lost",
+      label: "Deal lost",
+      hint: "Went to negotiation but did not close in our favour.",
+      resultsIn: "closed",
+      group: "After negotiation",
+    },
+  ],
+};
+
+export function stageRequiresReason(stage: LeadStage) {
+  return Boolean(REASONS_BY_STAGE[stage]?.length);
+}
+
+export function getStageReasonOption(reason: StageReason | null | undefined) {
+  if (!reason) return null;
+  for (const options of Object.values(REASONS_BY_STAGE)) {
+    const found = options?.find((item) => item.id === reason);
+    if (found) return found;
+  }
+  return null;
+}
+
+export function stageReasonLabel(reason: StageReason | null | undefined) {
+  if (!reason) return null;
+  return getStageReasonOption(reason)?.label ?? reason.replace(/_/g, " ");
+}
+
+/** @deprecated Use stageReasonLabel */
+export const closureReasonLabel = stageReasonLabel;
 
 export const BUDGET_LABELS: Record<string, string> = {
   "under-50l": "Under ₹50 L",

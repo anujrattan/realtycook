@@ -14,13 +14,115 @@ export type UserRole = "superadmin" | "admin" | "sales";
 
 export type LeadStage =
   | "new_enquiry"
-  | "mandate_locked"
-  | "shortlist_shared"
+  | "contacted"
+  | "meeting"
   | "site_visit_scheduled"
   | "negotiation"
-  | "paperwork_registry"
-  | "closed_won"
-  | "lost_hold";
+  | "closed";
+
+/**
+ * Outcome / disposition tied to a stage choice.
+ * Call attempts that need a retry stay on New; denials and deal results use Closed.
+ */
+export type StageReason =
+  | "interested"
+  | "no_answer"
+  | "switched_off"
+  | "busy_rejected"
+  | "callback_requested"
+  | "not_interested"
+  | "already_purchased"
+  | "budget_mismatch"
+  | "wrong_requirement"
+  | "duplicate"
+  | "deal_won"
+  | "deal_lost"
+  | "other";
+
+/** @deprecated Use StageReason */
+export type ClosureReason = StageReason;
+
+/** Map legacy stage values onto the current sales funnel. */
+export function normalizeLeadStage(stage: string | null | undefined): LeadStage {
+  switch (stage) {
+    case "contacted":
+      return "contacted";
+    case "mandate_locked":
+    case "shortlist_shared":
+    case "qualified":
+    case "meeting":
+      return "meeting";
+    case "site_visit_scheduled":
+      return "site_visit_scheduled";
+    case "negotiation":
+    case "paperwork_registry":
+      return "negotiation";
+    case "closed_won":
+    case "lost_hold":
+    case "closed":
+      return "closed";
+    case "new_enquiry":
+    default:
+      return "new_enquiry";
+  }
+}
+
+export function normalizeStageReason(
+  reason: string | null | undefined,
+  stage?: string | null,
+): StageReason | null {
+  if (!reason) return null;
+  const normalizedStage = normalizeLeadStage(stage);
+
+  const mapped: StageReason | null = (() => {
+    switch (reason) {
+      case "interested":
+      case "no_answer":
+      case "switched_off":
+      case "busy_rejected":
+      case "callback_requested":
+      case "not_interested":
+      case "already_purchased":
+      case "budget_mismatch":
+      case "wrong_requirement":
+      case "duplicate":
+      case "deal_won":
+      case "deal_lost":
+      case "other":
+        return reason;
+      case "not_looking":
+        return "not_interested";
+      case "unreachable":
+        return "switched_off";
+      case "closed_won":
+        return "deal_won";
+      case "lost_hold":
+        return "deal_lost";
+      default:
+        return null;
+    }
+  })();
+
+  if (!mapped) return null;
+
+  // Call-attempt reasons belong on New (retry) or Contacted (spoke / callback).
+  if (
+    mapped === "no_answer" ||
+    mapped === "switched_off" ||
+    mapped === "busy_rejected"
+  ) {
+    return normalizedStage === "new_enquiry" || normalizedStage === "contacted" ? mapped : null;
+  }
+  if (mapped === "interested" || mapped === "callback_requested") {
+    return normalizedStage === "contacted" || normalizedStage === "new_enquiry" ? mapped : null;
+  }
+  // Closure reasons only on Closed.
+  if (normalizedStage === "closed") return mapped;
+  return null;
+}
+
+/** @deprecated Use normalizeStageReason */
+export const normalizeClosureReason = normalizeStageReason;
 
 export type ServicePillar = "homes" | "commercial" | "upcoming" | "land" | "leasing";
 export type LeadIntent = "buy" | "sell" | "invest" | "lease";
@@ -63,6 +165,7 @@ export interface CrmLead {
   site_visit_date?: string | null;
   site_visit_time?: string | null;
   site_visit_property?: string | null;
+  closure_reason?: StageReason | null;
   notes_summary: string;
   created_at: string;
   updated_at: string;
@@ -168,6 +271,7 @@ const SEED_LEADS: CrmLead[] = [
     site_visit_date: "2026-11-07",
     site_visit_time: "11:00",
     site_visit_property: "Park-Facing 4 BHK Residence (Sector 65, Gurugram)",
+    closure_reason: null,
     notes_summary: "Looking for 4 BHK park-facing apartment or independent kothi. Follow-up call pending after site visit.",
     created_at: "2026-10-30T10:00:00.000Z",
     updated_at: "2026-11-03T10:00:00.000Z",
@@ -181,10 +285,11 @@ const SEED_LEADS: CrmLead[] = [
     intent: "invest",
     pillar: "commercial",
     budget: "3-10cr",
-    stage: "shortlist_shared",
+    stage: "meeting",
     source: "Website Contact",
     assigned_to: "44444444-4444-4444-8444-444444444444",
     next_followup_at: "2026-11-04T10:30:00.000Z",
+    closure_reason: null,
     notes_summary: "Wants a main-road double-height showroom with clear parking. Shared 2 verified options on WhatsApp.",
     created_at: "2026-10-31T10:00:00.000Z",
     updated_at: "2026-11-04T06:00:00.000Z",
@@ -198,10 +303,11 @@ const SEED_LEADS: CrmLead[] = [
     intent: "invest",
     pillar: "land",
     budget: "1-3cr",
-    stage: "mandate_locked",
+    stage: "contacted",
     source: "WhatsApp Bubble",
     assigned_to: "55555555-5555-4555-8555-555555555555",
     next_followup_at: "2026-11-04T12:30:00.000Z",
+    closure_reason: null,
     notes_summary: "Looking for 250–300 sq.yd approved plot on 30m sector road for 5-year hold.",
     created_at: "2026-11-01T10:00:00.000Z",
     updated_at: "2026-11-04T07:00:00.000Z",
@@ -219,6 +325,7 @@ const SEED_LEADS: CrmLead[] = [
     source: "Direct Referral",
     assigned_to: "44444444-4444-4444-8444-444444444444",
     next_followup_at: "2026-11-05T11:00:00.000Z",
+    closure_reason: null,
     notes_summary: "Need 1,800 sq.ft ground-floor space on 9-year lease with 3-year lock-in. Finalising LOI terms.",
     created_at: "2026-10-29T10:00:00.000Z",
     updated_at: "2026-11-04T08:00:00.000Z",
@@ -236,6 +343,7 @@ const SEED_LEADS: CrmLead[] = [
     source: "Website Contact",
     assigned_to: "22222222-2222-4222-8222-222222222222",
     next_followup_at: "2026-11-03T15:00:00.000Z",
+    closure_reason: null,
     notes_summary: "Enquired about RERA-verified 3 BHK new launch with construction-linked payment plan.",
     created_at: "2026-11-02T14:00:00.000Z",
     updated_at: "2026-11-02T14:00:00.000Z",
@@ -253,9 +361,28 @@ const SEED_LEADS: CrmLead[] = [
     source: "Direct Referral",
     assigned_to: "22222222-2222-4222-8222-222222222222",
     next_followup_at: "2026-11-06T10:00:00.000Z",
+    closure_reason: null,
     notes_summary: "1 Kanal freehold kothi requirement. Reviewing title search and mutation history with legal desk.",
     created_at: "2026-11-01T11:30:00.000Z",
     updated_at: "2026-11-04T07:30:00.000Z",
+  },
+  {
+    id: "lead-107",
+    name: "Meera Chopra",
+    phone: "919866778899",
+    email: "meera.chopra@example.com",
+    city: "Sector 70, Mohali",
+    intent: "buy",
+    pillar: "homes",
+    budget: "1-3cr",
+    stage: "closed",
+    source: "Website Contact",
+    assigned_to: "33333333-3333-4333-8333-333333333333",
+    next_followup_at: null,
+    closure_reason: "already_purchased",
+    notes_summary: "Called back — already booked a flat last week. Closed after first conversation.",
+    created_at: "2026-10-28T09:00:00.000Z",
+    updated_at: "2026-11-03T16:00:00.000Z",
   },
 ];
 
@@ -455,7 +582,11 @@ export async function getCrmSnapshot(): Promise<CrmStateSnapshot> {
         storageMode: "supabase",
         whatsappNumber,
         users,
-        leads,
+        leads: leads.map((lead) => ({
+          ...lead,
+          stage: normalizeLeadStage(lead.stage),
+          closure_reason: normalizeStageReason(lead.closure_reason, lead.stage),
+        })),
         comments,
         properties: properties.length ? properties : SEED_PROPERTIES,
       };
@@ -469,7 +600,13 @@ export async function getCrmSnapshot(): Promise<CrmStateSnapshot> {
     storageMode: "memory_fallback",
     whatsappNumber,
     users: mem.users.filter((u) => u.active),
-    leads: [...mem.leads].sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
+    leads: [...mem.leads]
+      .map((lead) => ({
+        ...lead,
+        stage: normalizeLeadStage(lead.stage),
+        closure_reason: normalizeStageReason(lead.closure_reason, lead.stage),
+      }))
+      .sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
     comments: [...mem.comments].sort((a, b) => b.created_at.localeCompare(a.created_at)),
     properties: [...mem.properties].filter((p) => p.active).sort((a, b) => b.created_at.localeCompare(a.created_at)),
   };
@@ -517,6 +654,7 @@ export async function createOrMergeLead(input: {
           source: input.source ?? "Website Contact",
           assigned_to: input.assigned_to ?? null,
           next_followup_at: followupIso,
+          closure_reason: null,
           notes_summary: input.message ?? "",
         }),
       });
@@ -567,6 +705,7 @@ export async function createOrMergeLead(input: {
     site_visit_date: null,
     site_visit_time: null,
     site_visit_property: null,
+    closure_reason: null,
     notes_summary: input.message ?? "New enquiry received.",
     created_at: now,
     updated_at: now,
@@ -777,6 +916,7 @@ export async function updateLeadStageOrFollowup(params: {
   actorId: string;
   leadId: string;
   stage?: LeadStage;
+  closureReason?: StageReason | null;
   nextFollowupAt?: string | null;
   siteVisitDate?: string | null;
   siteVisitTime?: string | null;
@@ -786,13 +926,24 @@ export async function updateLeadStageOrFollowup(params: {
   const actor = snap.users.find((u) => u.id === params.actorId);
   if (!actor) return { ok: false, error: "Unauthorized actor." };
 
+  if ((params.stage === "closed" || params.stage === "contacted") && !params.closureReason) {
+    return { ok: false, error: "Pick a reason for this status before saving." };
+  }
+
   const now = new Date().toISOString();
   const cfg = getSupabaseConfig();
+  const nextClosureReason =
+    params.closureReason !== undefined
+      ? params.closureReason
+      : params.stage && params.stage !== "closed" && params.stage !== "contacted" && params.stage !== "new_enquiry"
+        ? null
+        : undefined;
 
   if (cfg.enabled) {
     try {
       const patch: Record<string, unknown> = { updated_at: now };
       if (params.stage) patch.stage = params.stage;
+      if (nextClosureReason !== undefined) patch.closure_reason = nextClosureReason;
       if (params.nextFollowupAt !== undefined) patch.next_followup_at = params.nextFollowupAt;
       if (params.siteVisitDate !== undefined) patch.site_visit_date = params.siteVisitDate;
       if (params.siteVisitTime !== undefined) patch.site_visit_time = params.siteVisitTime;
@@ -813,6 +964,7 @@ export async function updateLeadStageOrFollowup(params: {
 
   const previousStage = lead.stage;
   if (params.stage) lead.stage = params.stage;
+  if (nextClosureReason !== undefined) lead.closure_reason = nextClosureReason;
   if (params.nextFollowupAt !== undefined) lead.next_followup_at = params.nextFollowupAt;
   if (params.siteVisitDate !== undefined) lead.site_visit_date = params.siteVisitDate;
   if (params.siteVisitTime !== undefined) lead.site_visit_time = params.siteVisitTime;
@@ -833,13 +985,17 @@ export async function updateLeadStageOrFollowup(params: {
       created_at: now,
     });
   } else if (params.stage && params.stage !== previousStage) {
+    const reasonNote =
+      params.stage === "closed" && params.closureReason
+        ? ` Reason: ${params.closureReason.replace(/_/g, " ")}.`
+        : "";
     mem.comments.unshift({
       id: `c-${Date.now()}`,
       lead_id: lead.id,
       author_id: actor.id,
       author_name: actor.name,
       author_role: actor.role,
-      body: `Moved stage from ${previousStage.replace(/_/g, " ")} → ${params.stage.replace(/_/g, " ")}.`,
+      body: `Moved stage from ${previousStage.replace(/_/g, " ")} → ${params.stage.replace(/_/g, " ")}.${reasonNote}`,
       followup_scheduled_for: lead.next_followup_at,
       created_at: now,
     });

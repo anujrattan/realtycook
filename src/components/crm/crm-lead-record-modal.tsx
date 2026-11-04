@@ -14,6 +14,7 @@ import {
   formatSiteVisit,
   isFollowupOverdue,
   PILLAR_LABELS,
+  stageReasonLabel,
   STAGES,
 } from "@/components/crm/crm-shared";
 
@@ -167,6 +168,11 @@ export function CrmLeadRecordModal({
                     </option>
                   ))}
                 </select>
+                {lead.closure_reason && (
+                  <p className="mt-2 text-sm font-semibold text-ink/70">
+                    Reason: {stageReasonLabel(lead.closure_reason)}
+                  </p>
+                )}
               </div>
 
               <div>

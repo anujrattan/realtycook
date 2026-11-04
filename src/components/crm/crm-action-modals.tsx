@@ -1,7 +1,9 @@
 "use client";
 
 import { FileSpreadsheet, Upload } from "lucide-react";
-import type { CrmUser, LeadIntent, ServicePillar } from "@/lib/crm-store";
+import { useMemo, useState } from "react";
+import { REASONS_BY_STAGE, STAGES } from "@/components/crm/crm-shared";
+import type { CrmUser, LeadIntent, LeadStage, ServicePillar, StageReason } from "@/lib/crm-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -363,3 +365,101 @@ export function CrmAddPropertyModal({
     </div>
   );
 }
+
+export type CrmStageReasonModalProps = {
+  open: boolean;
+  leadName: string;
+  targetStage: LeadStage;
+  busy: boolean;
+  onClose: () => void;
+  onConfirm: (reason: StageReason) => void;
+};
+
+/** @deprecated Use CrmStageReasonModal */
+export type CrmCloseLeadModalProps = CrmStageReasonModalProps;
+
+export function CrmStageReasonModal({
+  open,
+  leadName,
+  targetStage,
+  busy,
+  onClose,
+  onConfirm,
+}: CrmStageReasonModalProps) {
+  const [reason, setReason] = useState<StageReason | "">("");
+  const options = REASONS_BY_STAGE[targetStage] ?? [];
+  const groups = useMemo(() => {
+    const map = new Map<string, typeof options>();
+    for (const option of options) {
+      const list = map.get(option.group) ?? [];
+      list.push(option);
+      map.set(option.group, list);
+    }
+    return [...map.entries()];
+  }, [options]);
+
+  if (!open) return null;
+
+  const stageLabel = STAGES.find((stage) => stage.id === targetStage)?.label ?? targetStage;
+  const title = targetStage === "closed" ? "Close lead" : "Call outcome";
+  const subtitle =
+    targetStage === "closed"
+      ? `Choose why ${leadName} is leaving the active pipeline.`
+      : `How did the call with ${leadName} go? Retry outcomes stay on New with a follow-up.`;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/60 p-4 backdrop-blur-xs">
+      <div className="w-full max-w-md rounded-3xl border border-border bg-white p-6 shadow-lift">
+        <p className="text-[11px] font-semibold tracking-[0.14em] text-ink/40 uppercase">{stageLabel}</p>
+        <h2 className="mt-1 text-xl font-bold text-ink">{title}</h2>
+        <p className="mt-2 text-sm text-ink/60">{subtitle}</p>
+
+        <div className="mt-5 max-h-[50vh] space-y-4 overflow-y-auto pr-1">
+          {groups.map(([group, items]) => (
+            <div key={group}>
+              <Label className="text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase">
+                {group}
+              </Label>
+              <div className="mt-2 grid gap-2">
+                {items.map((item) => (
+                  <label
+                    key={item.id}
+                    className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border px-3 py-2.5 text-sm hover:bg-cream"
+                  >
+                    <input
+                      type="radio"
+                      name="stage-reason"
+                      className="mt-1"
+                      checked={reason === item.id}
+                      onChange={() => setReason(item.id)}
+                    />
+                    <span>
+                      <span className="block font-semibold text-ink">{item.label}</span>
+                      <span className="mt-0.5 block text-xs text-ink/55">{item.hint}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            disabled={busy || !reason}
+            onClick={() => reason && onConfirm(reason)}
+            className="rounded-xl bg-brand-red text-white shadow-red"
+          >
+            Save
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export const CrmCloseLeadModal = CrmStageReasonModal;

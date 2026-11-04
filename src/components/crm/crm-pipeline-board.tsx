@@ -10,6 +10,7 @@ import {
   formatSiteVisit,
   isFollowupOverdue,
   PILLAR_LABELS,
+  stageReasonLabel,
   STAGES,
 } from "@/components/crm/crm-shared";
 
@@ -118,8 +119,8 @@ export function CrmPipelineBoard({
       </div>
 
       {viewMode === "kanban" && (
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {STAGES.slice(0, 7).map((stage) => {
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          {STAGES.map((stage) => {
             const stageLeads = filteredLeads.filter((l) => l.stage === stage.id);
             const isDropTarget = dropStageId === stage.id;
             return (
@@ -137,7 +138,7 @@ export function CrmPipelineBoard({
                   void onStageDrop(stage.id);
                 }}
                 className={cn(
-                  "flex w-[275px] shrink-0 flex-col rounded-2xl border p-3 transition-colors",
+                  "flex min-h-[280px] min-w-0 flex-col rounded-2xl border p-3 transition-colors",
                   isDropTarget ? "border-brand-red bg-brand-red-soft/40" : "border-border/80 bg-cream-2/55",
                 )}
               >
@@ -195,6 +196,22 @@ export function CrmPipelineBoard({
                           <p className="mt-2 inline-flex items-center gap-1 rounded-md bg-indigo-500/10 px-2 py-0.5 text-[10px] font-semibold text-indigo-800">
                             <MapPin className="size-3" />
                             Visit: {formatSiteVisit(lead.site_visit_date, lead.site_visit_time)}
+                          </p>
+                        )}
+
+                        {lead.closure_reason && (
+                          <p
+                            className={cn(
+                              "mt-2 inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold",
+                              lead.closure_reason === "deal_won"
+                                ? "bg-emerald-500/15 text-emerald-800"
+                                : lead.closure_reason === "interested" ||
+                                    lead.closure_reason === "callback_requested"
+                                  ? "bg-amber-500/15 text-amber-900"
+                                  : "bg-stone-500/15 text-stone-700",
+                            )}
+                          >
+                            {stageReasonLabel(lead.closure_reason)}
                           </p>
                         )}
 

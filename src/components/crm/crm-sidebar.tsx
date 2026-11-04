@@ -18,14 +18,12 @@ type NavItem = {
   hint: string;
   icon: typeof Kanban;
   count?: number;
-  superadminOnly?: boolean;
 };
 
 export function CrmSidebar({
   activeNav,
   onNavigate,
   counts,
-  isSuperadmin,
 }: {
   activeNav: CrmNavId;
   onNavigate: (id: CrmNavId) => void;
@@ -36,9 +34,15 @@ export function CrmSidebar({
     team: number;
     missed: number;
   };
-  isSuperadmin: boolean;
 }) {
   const items: NavItem[] = [
+    {
+      id: "dashboard",
+      label: "Dashboard",
+      hint: "Missed items & activity",
+      icon: LayoutDashboard,
+      count: counts.missed,
+    },
     {
       id: "pipeline",
       label: "Lead Pipeline",
@@ -62,18 +66,10 @@ export function CrmSidebar({
     },
     {
       id: "team",
-      label: "Team & Roles",
+      label: "User Management",
       hint: "Accounts & permissions",
       icon: Users,
       count: counts.team,
-    },
-    {
-      id: "dashboard",
-      label: "Dashboard",
-      hint: "Missed items & activity",
-      icon: LayoutDashboard,
-      count: counts.missed,
-      superadminOnly: true,
     },
   ];
 
@@ -87,41 +83,41 @@ export function CrmSidebar({
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="CRM sections">
-        {items
-          .filter((item) => !item.superadminOnly || isSuperadmin)
-          .map((item) => {
-            const Icon = item.icon;
-            const active = activeNav === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onNavigate(item.id)}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors",
-                  active ? "bg-ink text-white" : "text-ink/70 hover:bg-cream hover:text-ink",
-                )}
-              >
-                <Icon className={cn("size-4 shrink-0", active ? "text-brand-red" : "text-ink/40")} />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold">{item.label}</span>
-                  <span className={cn("mt-0.5 block text-[11px]", active ? "text-white/55" : "text-ink/40")}>
-                    {item.hint}
-                  </span>
+        {items.map((item) => {
+          const Icon = item.icon;
+          const active = activeNav === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onNavigate(item.id)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors",
+                active
+                  ? "bg-brand-red text-white shadow-red"
+                  : "text-ink/70 hover:bg-cream hover:text-ink",
+              )}
+            >
+              <Icon className={cn("size-4 shrink-0", active ? "text-white" : "text-ink/40")} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold">{item.label}</span>
+                <span className={cn("mt-0.5 block text-[11px]", active ? "text-white/75" : "text-ink/40")}>
+                  {item.hint}
                 </span>
-                {typeof item.count === "number" && (
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums",
-                      active ? "bg-white/12 text-white" : "bg-cream text-ink/60",
-                    )}
-                  >
-                    {item.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+              </span>
+              {typeof item.count === "number" && (
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums",
+                    active ? "bg-white/20 text-white" : "bg-cream text-ink/60",
+                  )}
+                >
+                  {item.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </nav>
     </aside>
   );
