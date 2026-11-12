@@ -7,7 +7,6 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 function LoginForm() {
   const router = useRouter();
@@ -25,21 +24,17 @@ function LoginForm() {
     setBusy(true);
     setError(null);
     try {
-      const supabase = createBrowserSupabaseClient();
-      const { data, error: signError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
       });
-      if (signError) {
-        setError(signError.message);
+      const data = (await res.json()) as { error?: string; mustResetPassword?: boolean };
+      if (!res.ok) {
+        setError(data.error || "Sign-in failed.");
         return;
       }
-
-      const mustReset =
-        data.user?.app_metadata?.must_reset_password === true ||
-        data.user?.app_metadata?.must_reset_password === "true";
-
-      router.replace(mustReset ? "/reset-password" : next.startsWith("/") ? next : "/crm");
+      router.replace(data.mustResetPassword ? "/reset-password" : next.startsWith("/") ? next : "/crm");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed.");

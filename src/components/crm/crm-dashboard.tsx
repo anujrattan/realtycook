@@ -47,7 +47,6 @@ import {
   UserRole,
 } from "@/lib/crm-store";
 import type { InventoryEditForm } from "@/components/crm/crm-inventory-record-modal";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
@@ -238,8 +237,7 @@ export function CrmDashboard({
 
   async function handleLogout() {
     try {
-      const supabase = createBrowserSupabaseClient();
-      await supabase.auth.signOut();
+      await fetch("/api/auth/logout", { method: "POST" });
     } catch {
       // Still send user to login
     }

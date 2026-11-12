@@ -6,8 +6,6 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
-import { getSiteUrl } from "@/lib/supabase/env";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -20,13 +18,14 @@ export default function ForgotPasswordPage() {
     setBusy(true);
     setError(null);
     try {
-      const supabase = createBrowserSupabaseClient();
-      const redirectTo = `${typeof window !== "undefined" ? window.location.origin : getSiteUrl()}/auth/callback?next=${encodeURIComponent("/reset-password?type=recovery")}`;
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo,
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
       });
-      if (resetError) {
-        setError(resetError.message);
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setError(data.error || "Could not send reset email.");
         return;
       }
       setDone(true);

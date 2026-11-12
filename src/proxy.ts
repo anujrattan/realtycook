@@ -2,7 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
 
 const PUBLIC_EXACT = new Set(["/", "/login", "/forgot-password", "/reset-password"]);
-const PUBLIC_PREFIXES = ["/auth/", "/api/enquiry"];
+const PUBLIC_PREFIXES = [
+  "/auth/",
+  "/api/enquiry",
+  "/api/auth/login",
+  "/api/auth/forgot-password",
+  "/api/auth/logout",
+];
 
 function isPublicPath(pathname: string) {
   if (PUBLIC_EXACT.has(pathname)) return true;

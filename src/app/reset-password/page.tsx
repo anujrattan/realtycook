@@ -7,7 +7,6 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -33,20 +32,16 @@ function ResetPasswordForm() {
 
     setBusy(true);
     try {
-      const supabase = createBrowserSupabaseClient();
-      const { error: updateError } = await supabase.auth.updateUser({ password });
-      if (updateError) {
-        setError(updateError.message);
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setError(data.error || "Could not update password.");
         return;
       }
-
-      const complete = await fetch("/api/auth/complete-password-reset", { method: "POST" });
-      if (!complete.ok) {
-        const body = (await complete.json().catch(() => ({}))) as { error?: string };
-        setError(body.error || "Password saved, but could not clear first-login flag.");
-        return;
-      }
-
       router.replace("/crm");
       router.refresh();
     } catch (err) {

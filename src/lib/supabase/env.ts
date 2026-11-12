@@ -21,6 +21,7 @@ export function getSupabasePublicEnv() {
 export function getSiteUrl() {
   const fromEnv = (process.env.NEXT_PUBLIC_SITE_URL || "").trim().replace(/\/$/, "");
   if (fromEnv) return fromEnv;
+  if (process.env.NODE_ENV === "production") return "https://realtycook.com";
   return "http://localhost:3000";
 }
 
