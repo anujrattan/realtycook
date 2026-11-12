@@ -1,10 +1,20 @@
 "use client";
 
-import { CalendarClock, MapPin, MessageCircle, Send, X } from "lucide-react";
-import type { CrmLead, CrmLeadComment, CrmProperty, CrmUser, LeadStage } from "@/lib/crm-store";
+import { useEffect, useState } from "react";
+import { CalendarClock, MapPin, MessageCircle, Pencil, Send, X } from "lucide-react";
+import type {
+  CrmLead,
+  CrmLeadComment,
+  CrmProperty,
+  CrmUser,
+  LeadIntent,
+  LeadStage,
+  ServicePillar,
+} from "@/lib/crm-store";
 import { propertySummary } from "@/lib/crm-inventory";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -18,6 +28,30 @@ import {
   stageReasonLabel,
   STAGES,
 } from "@/components/crm/crm-shared";
+
+export type LeadEditForm = {
+  name: string;
+  phone: string;
+  email: string;
+  city: string;
+  intent: LeadIntent;
+  pillar: ServicePillar;
+  budget: string;
+  notes_summary: string;
+};
+
+function formFromLead(lead: CrmLead): LeadEditForm {
+  return {
+    name: lead.name,
+    phone: lead.phone,
+    email: lead.email || "",
+    city: lead.city || "",
+    intent: lead.intent,
+    pillar: lead.pillar,
+    budget: lead.budget,
+    notes_summary: lead.notes_summary || "",
+  };
+}
 
 export type CrmLeadRecordModalProps = {
   lead: CrmLead;
@@ -43,6 +77,7 @@ export type CrmLeadRecordModalProps = {
   onUpdateStage: (stage: LeadStage) => void;
   onAssignLead: (targetUserId: string | null) => void;
   onAssignToMe: () => void;
+  onSaveLead: (form: LeadEditForm) => Promise<boolean> | boolean;
 };
 
 export function CrmLeadRecordModal({
@@ -69,7 +104,22 @@ export function CrmLeadRecordModal({
   onUpdateStage,
   onAssignLead,
   onAssignToMe,
+  onSaveLead,
 }: CrmLeadRecordModalProps) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<LeadEditForm>(() => formFromLead(lead));
+
+  useEffect(() => {
+    setForm(formFromLead(lead));
+    setEditing(false);
+  }, [lead.id]);
+
+  async function handleSaveLead(e: React.FormEvent) {
+    e.preventDefault();
+    const ok = await onSaveLead(form);
+    if (ok) setEditing(false);
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 backdrop-blur-[2px] sm:p-8"
@@ -125,6 +175,16 @@ export function CrmLeadRecordModal({
             </div>
 
             <div className="flex items-center gap-2">
+              {!editing ? (
+                <Button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="h-10 rounded-xl bg-brand-red px-4 text-white shadow-red"
+                >
+                  <Pencil className="size-4" />
+                  Edit
+                </Button>
+              ) : null}
               <a
                 href={buildWhatsAppUrl(lead.phone, lead.name, lead.pillar, actor.name)}
                 target="_blank"
@@ -150,9 +210,124 @@ export function CrmLeadRecordModal({
           <div className="overflow-y-auto border-b border-border px-8 py-8 lg:border-r lg:border-b-0">
             <h3 className="text-sm font-bold text-ink">About this lead</h3>
             <p className="mt-1 text-sm leading-relaxed text-ink/55">
-              Update stage and ownership here. Keep notes and follow-ups on the right.
+              Anyone on the team can edit lead details. Update stage and ownership here; keep notes on the right.
             </p>
 
+            {editing ? (
+              <form onSubmit={handleSaveLead} className="mt-8 space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label htmlFor="lead-edit-name">Name *</Label>
+                    <Input
+                      id="lead-edit-name"
+                      required
+                      value={form.name}
+                      onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="lead-edit-phone">Phone *</Label>
+                    <Input
+                      id="lead-edit-phone"
+                      required
+                      value={form.phone}
+                      onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="lead-edit-email">Email</Label>
+                    <Input
+                      id="lead-edit-email"
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label htmlFor="lead-edit-city">City / locality</Label>
+                    <Input
+                      id="lead-edit-city"
+                      value={form.city}
+                      onChange={(e) => setForm((s) => ({ ...s, city: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="lead-edit-intent">Intent</Label>
+                    <select
+                      id="lead-edit-intent"
+                      value={form.intent}
+                      onChange={(e) => setForm((s) => ({ ...s, intent: e.target.value as LeadIntent }))}
+                      className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm"
+                    >
+                      <option value="buy">Buy</option>
+                      <option value="sell">Sell</option>
+                      <option value="invest">Invest</option>
+                      <option value="lease">Lease</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="lead-edit-pillar">Pillar</Label>
+                    <select
+                      id="lead-edit-pillar"
+                      value={form.pillar}
+                      onChange={(e) => setForm((s) => ({ ...s, pillar: e.target.value as ServicePillar }))}
+                      className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm"
+                    >
+                      {Object.entries(PILLAR_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label htmlFor="lead-edit-budget">Budget</Label>
+                    <select
+                      id="lead-edit-budget"
+                      value={form.budget}
+                      onChange={(e) => setForm((s) => ({ ...s, budget: e.target.value }))}
+                      className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm"
+                    >
+                      {Object.entries(BUDGET_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label htmlFor="lead-edit-notes">Notes / extra details</Label>
+                    <Textarea
+                      id="lead-edit-notes"
+                      rows={4}
+                      value={form.notes_summary}
+                      onChange={(e) => setForm((s) => ({ ...s, notes_summary: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap justify-end gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => {
+                      setForm(formFromLead(lead));
+                      setEditing(false);
+                    }}
+                    className="h-10 rounded-xl"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={busy}
+                    className="h-10 rounded-xl bg-brand-red text-white shadow-red"
+                  >
+                    Save lead
+                  </Button>
+                </div>
+              </form>
+            ) : (
             <div className="mt-8 space-y-7">
               <div>
                 <Label className="text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase">
@@ -342,6 +517,7 @@ export function CrmLeadRecordModal({
                 </div>
               )}
             </div>
+            )}
           </div>
 
           <div className="flex min-h-0 flex-col overflow-hidden bg-cream/25">

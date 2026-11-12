@@ -2,13 +2,13 @@
 
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
 import {
   CrmAddPropertyModal,
   CrmBulkUploadModal,
   CrmNewLeadModal,
   CrmStageReasonModal,
 } from "@/components/crm/crm-action-modals";
+import { parseBulkLeadFile, type BulkLeadRow } from "@/lib/crm-bulk-import";
 import { CrmDashboardPanel } from "@/components/crm/crm-dashboard-panel";
 import { CrmFollowupToast } from "@/components/crm/crm-followup-toast";
 import { CrmFollowupsView } from "@/components/crm/crm-followups-view";
@@ -82,18 +82,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
     targetStage: LeadStage;
   } | null>(null);
   const [bulkPreviewCount, setBulkPreviewCount] = useState(0);
-  const [bulkRows, setBulkRows] = useState<
-    Array<{
-      name: string;
-      phone: string;
-      email?: string;
-      city?: string;
-      intent?: LeadIntent;
-      pillar?: ServicePillar;
-      budget?: string;
-      notes_summary?: string;
-    }>
-  >([]);
+  const [bulkRows, setBulkRows] = useState<BulkLeadRow[]>([]);
 
   const [newLeadForm, setNewLeadForm] = useState({
     name: "",
@@ -415,24 +404,57 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
           pillar: normalizePillar(row.pillar),
           budget: normalizeBudget(row.budget),
           stage: "new_enquiry",
-          source: `Excel Upload (${actor.name})`,
+          source: `Bulk Upload (${actor.name})`,
           assigned_to: actor.role === "sales" ? actor.id : null,
           next_followup_at: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
           site_visit_date: null,
           site_visit_time: null,
           site_visit_property: null,
           closure_reason: null,
-          notes_summary: String(row.notes_summary ?? "Imported via Excel Bulk Upload"),
+          notes_summary: String(row.notes_summary ?? "Imported via bulk upload"),
           created_at: now,
           updated_at: now,
         });
       }
       if (!created.length) {
-        setBannerError("No valid leads found in uploaded sheet.");
+        setBannerError("No valid leads found. Need Name + Phone on each row.");
         return false;
       }
       saveLocalSnapshot({ ...snapshot, leads: [...created, ...snapshot.leads] });
-      setBannerSuccess(`Imported ${created.length} leads from Excel.`);
+      setBannerSuccess(`Imported ${created.length} leads from upload.`);
+      return true;
+    }
+
+    if (action === "update_lead") {
+      const leadId = String(body.leadId ?? "");
+      const existing = snapshot.leads.find((l) => l.id === leadId);
+      if (!existing) {
+        setBannerError("Lead not found.");
+        return false;
+      }
+      const name = String(body.name ?? existing.name).trim();
+      const phoneDigits = String(body.phone ?? existing.phone).replace(/\D/g, "");
+      if (name.length < 2 || phoneDigits.length < 10) {
+        setBannerError("Name and a valid phone number are required.");
+        return false;
+      }
+      const next: CrmLead = {
+        ...existing,
+        name,
+        phone: phoneDigits.length === 10 ? `91${phoneDigits}` : phoneDigits,
+        email: String(body.email ?? existing.email).trim(),
+        city: String(body.city ?? existing.city).trim(),
+        intent: normalizeIntent(body.intent ?? existing.intent),
+        pillar: normalizePillar(body.pillar ?? existing.pillar),
+        budget: normalizeBudget(body.budget ?? existing.budget),
+        notes_summary: String(body.notes_summary ?? existing.notes_summary).trim(),
+        updated_at: now,
+      };
+      saveLocalSnapshot({
+        ...snapshot,
+        leads: snapshot.leads.map((l) => (l.id === leadId ? next : l)),
+      });
+      setBannerSuccess("Lead details saved.");
       return true;
     }
 
@@ -903,43 +925,43 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
     }
   }
 
-  function parseExcelFile(file: File) {
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
-        const wb = XLSX.read(data, { type: "array" });
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-        const rows = json
-          .map((row) => {
-            const pick = (...keys: string[]) => {
-              for (const k of keys) {
-                const found = Object.entries(row).find(([rk]) => rk.trim().toLowerCase() === k);
-                if (found && String(found[1]).trim()) return String(found[1]).trim();
-              }
-              return "";
-            };
-            return {
-              name: pick("name", "client name", "client", "full name"),
-              phone: pick("phone", "mobile", "whatsapp", "contact"),
-              email: pick("email", "mail"),
-              city: pick("city", "sector", "locality", "location"),
-              intent: normalizeIntent(pick("intent", "requirement")),
-              pillar: normalizePillar(pick("pillar", "service", "category")),
-              budget: normalizeBudget(pick("budget", "budget bracket")),
-              notes_summary: pick("notes", "message", "remarks", "requirement details"),
-            };
-          })
-          .filter((r) => r.name.length >= 2 && r.phone.replace(/\D/g, "").length >= 10);
-        setBulkRows(rows);
-        setBulkPreviewCount(rows.length);
-        if (!rows.length) setBannerError("No valid rows found. Need Name + Phone columns.");
-      } catch {
-        setBannerError("Could not parse that Excel file. Use .xlsx / .xls / .csv.");
+  async function parseBulkFile(file: File) {
+    setBannerError(null);
+    setBusy(true);
+    try {
+      const rows = await parseBulkLeadFile(file);
+      setBulkRows(rows);
+      setBulkPreviewCount(rows.length);
+      if (!rows.length) {
+        setBannerError("No valid rows found. The file must include Name and Phone for each lead.");
+      } else {
+        setBannerSuccess(`Parsed ${rows.length} lead${rows.length === 1 ? "" : "s"} from ${file.name}.`);
       }
-    };
-    reader.readAsArrayBuffer(file);
+    } catch {
+      setBulkRows([]);
+      setBulkPreviewCount(0);
+      setBannerError("Could not parse that file. Use .xlsx, .xls, .csv, or .pdf with Name + Phone.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSaveLead(form: {
+    name: string;
+    phone: string;
+    email: string;
+    city: string;
+    intent: LeadIntent;
+    pillar: ServicePillar;
+    budget: string;
+    notes_summary: string;
+  }) {
+    if (!selectedLeadId) return false;
+    return postCrmAction({
+      action: "update_lead",
+      leadId: selectedLeadId,
+      ...form,
+    });
   }
 
   async function handleBulkImport() {
@@ -1163,6 +1185,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
           onAssignToMe={() =>
             postCrmAction({ action: "assign_lead", leadId: selectedLead.id, targetUserId: actor.id })
           }
+          onSaveLead={handleSaveLead}
         />
       )}
 
@@ -1194,7 +1217,9 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
         onClose={() => setShowBulkUpload(false)}
         busy={busy}
         bulkPreviewCount={bulkPreviewCount}
-        onFileSelected={parseExcelFile}
+        onFileSelected={(file) => {
+          void parseBulkFile(file);
+        }}
         onImport={handleBulkImport}
       />
 

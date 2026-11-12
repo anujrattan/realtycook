@@ -13,6 +13,7 @@ import {
   removeCrmUserWithRbac,
   type ServicePillar,
   type UserRole,
+  updateCrmLead,
   updateCrmProperty,
   updateLeadStageOrFollowup,
 } from "@/lib/crm-store";
@@ -219,6 +220,29 @@ export async function POST(request: Request) {
         payload.siteVisitProperty !== undefined
           ? (payload.siteVisitProperty as string | null)
           : undefined,
+    });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 403 });
+    }
+    const snapshot = await getCrmSnapshot();
+    return NextResponse.json({ ok: true, lead: result.lead, snapshot });
+  }
+
+  if (action === "update_lead") {
+    const result = await updateCrmLead({
+      actorId,
+      leadId: String(payload.leadId ?? ""),
+      patch: {
+        name: payload.name !== undefined ? String(payload.name) : undefined,
+        phone: payload.phone !== undefined ? String(payload.phone) : undefined,
+        email: payload.email !== undefined ? String(payload.email) : undefined,
+        city: payload.city !== undefined ? String(payload.city) : undefined,
+        intent: payload.intent !== undefined ? (payload.intent as LeadIntent) : undefined,
+        pillar: payload.pillar !== undefined ? (payload.pillar as ServicePillar) : undefined,
+        budget: payload.budget !== undefined ? String(payload.budget) : undefined,
+        notes_summary:
+          payload.notes_summary !== undefined ? String(payload.notes_summary) : undefined,
+      },
     });
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 403 });

@@ -776,8 +776,8 @@ export async function bulkCreateLeads(params: {
       intent: (row.intent as LeadIntent) ?? "buy",
       pillar: (row.pillar as ServicePillar) ?? "homes",
       budget: String(row.budget ?? "1-3cr"),
-      message: String(row.notes_summary ?? "Imported via Excel Bulk Upload").trim(),
-      source: `Excel Upload (${actor.name})`,
+      message: String(row.notes_summary ?? "Imported via bulk upload").trim(),
+      source: `Bulk Upload (${actor.name})`,
       assigned_to: assignedTo,
       next_followup_at: row.next_followup_at ?? new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
     });
@@ -789,7 +789,7 @@ export async function bulkCreateLeads(params: {
       author_id: actor.id,
       author_name: actor.name,
       author_role: actor.role,
-      body: `Bulk imported lead via Excel sheet.`,
+      body: `Bulk imported lead (name + phone required; extra details can be edited on the lead).`,
       followup_scheduled_for: created.next_followup_at,
       created_at: new Date().toISOString(),
     });
@@ -1043,6 +1043,70 @@ export async function updateCrmProperty(params: {
   };
   mem.properties[idx] = next;
   return { ok: true, property: next };
+}
+
+export type CrmLeadUpdateInput = {
+  name?: string;
+  phone?: string;
+  email?: string;
+  city?: string;
+  intent?: LeadIntent;
+  pillar?: ServicePillar;
+  budget?: string;
+  notes_summary?: string;
+};
+
+/** Any authenticated CRM user can edit lead profile fields. */
+export async function updateCrmLead(params: {
+  actorId: string;
+  leadId: string;
+  patch: CrmLeadUpdateInput;
+}): Promise<{ ok: true; lead: CrmLead } | { ok: false; error: string }> {
+  const snap = await getCrmSnapshot();
+  const actor = snap.users.find((u) => u.id === params.actorId);
+  if (!actor) return { ok: false, error: "Unauthorized actor." };
+
+  const existing = snap.leads.find((l) => l.id === params.leadId);
+  if (!existing) return { ok: false, error: "Lead not found." };
+
+  const name = (params.patch.name ?? existing.name).trim();
+  const phoneRaw = (params.patch.phone ?? existing.phone).replace(/\D/g, "");
+  if (name.length < 2 || phoneRaw.length < 10) {
+    return { ok: false, error: "Name and a valid phone number are required." };
+  }
+  const phone = phoneRaw.length === 10 ? `91${phoneRaw}` : phoneRaw;
+
+  const body = {
+    name,
+    phone,
+    email: (params.patch.email ?? existing.email).trim(),
+    city: (params.patch.city ?? existing.city).trim(),
+    intent: params.patch.intent ?? existing.intent,
+    pillar: params.patch.pillar ?? existing.pillar,
+    budget: (params.patch.budget ?? existing.budget).trim() || existing.budget,
+    notes_summary: (params.patch.notes_summary ?? existing.notes_summary).trim(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const cfg = getSupabaseConfig();
+  if (cfg.enabled) {
+    try {
+      const updated = await sbFetch<CrmLead[]>(`crm_leads?id=eq.${encodeURIComponent(params.leadId)}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+        headers: { Prefer: "return=representation" },
+      });
+      if (updated[0]) return { ok: true, lead: updated[0] };
+    } catch (err) {
+      console.warn("[crm-store] Supabase lead update failed, using memory store:", err);
+    }
+  }
+
+  const mem = getMemoryStore();
+  const lead = mem.leads.find((l) => l.id === params.leadId);
+  if (!lead) return { ok: false, error: "Lead not found." };
+  Object.assign(lead, body);
+  return { ok: true, lead };
 }
 
 export async function assignLeadWithRbac(params: {

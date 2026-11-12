@@ -185,13 +185,14 @@ export function CrmBulkUploadModal({
             Close ✕
           </button>
         </div>
-        <p className="mt-4 text-xs text-ink/65">
-          Upload an Excel sheet (<code>.xlsx</code> / <code>.xls</code> / <code>.csv</code>) with columns like{" "}
-          <strong>Name</strong>, <strong>Phone</strong>, Email, City, Intent, Pillar, Budget, Notes.
+        <p className="mt-4 text-xs leading-relaxed text-ink/65">
+          Upload <code>.xlsx</code>, <code>.xls</code>, <code>.csv</code>, or <code>.pdf</code>.{" "}
+          <strong>Name</strong> and <strong>Phone</strong> are required on each row. Any other columns are
+          optional and stored as notes — you can fill the rest by editing the lead later.
         </p>
         <input
           type="file"
-          accept=".xlsx,.xls,.csv"
+          accept=".xlsx,.xls,.csv,.pdf,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           className="mt-4 block w-full text-xs"
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -200,7 +201,8 @@ export function CrmBulkUploadModal({
         />
         {bulkPreviewCount > 0 && (
           <p className="mt-3 rounded-xl bg-cream px-3 py-2 text-xs font-semibold text-ink">
-            Ready to import <span className="text-brand-red">{bulkPreviewCount}</span> valid leads.
+            Ready to import <span className="text-brand-red">{bulkPreviewCount}</span> valid leads
+            (name + phone found).
           </p>
         )}
         <div className="mt-5 flex justify-end gap-2">
