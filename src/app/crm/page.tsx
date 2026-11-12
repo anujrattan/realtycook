@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   description: "Internal CRM for RealtyCook Superadmin, Admin, and Sales advisors.",
 };
 
-/** CRM is allowed to block; live Supabase is skipped during `next build` prerender. */
-export const instant = false;
+/** Always render on the Worker so live Supabase fetches are allowed. */
+export const dynamic = "force-dynamic";
 
 export default async function CrmPage() {
   const initialSnapshot = await getCrmSnapshot();

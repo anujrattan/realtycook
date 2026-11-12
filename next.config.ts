@@ -2,8 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1", "localhost"],
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Cache Components hangs on workerd (CF Error 1101 / "never generate a response").
+  // Keep off until OpenNext fully supports staged renders for our Next version.
+  cacheComponents: false,
   turbopack: {
     rules: {
       "*.css": {
