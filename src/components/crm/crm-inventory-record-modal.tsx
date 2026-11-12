@@ -327,20 +327,6 @@ export function CrmInventoryRecordModal({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="inv-verify">Verification status</Label>
-                  <Input
-                    id="inv-verify"
-                    value={form.verification_status}
-                    onChange={(e) =>
-                      setForm((s) => ({
-                        ...s,
-                        verification_status: e.target.value,
-                        verification_badge: e.target.value || s.verification_badge,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
                   <Label htmlFor="inv-pillar">Pillar</Label>
                   <select
                     id="inv-pillar"
@@ -354,6 +340,36 @@ export function CrmInventoryRecordModal({
                       </option>
                     ))}
                   </select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="inv-badge">Verification badge</Label>
+                  <Input
+                    id="inv-badge"
+                    value={form.verification_badge}
+                    onChange={(e) =>
+                      setForm((s) => ({
+                        ...s,
+                        verification_badge: e.target.value,
+                        verification_status: e.target.value || s.verification_status,
+                      }))
+                    }
+                    placeholder="e.g. Ground Verified, Need More Info"
+                  />
+                  <p className="text-[11px] text-ink/50">Shown as the green pill on the inventory record.</p>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="inv-verify">Verification status</Label>
+                  <Input
+                    id="inv-verify"
+                    value={form.verification_status}
+                    onChange={(e) =>
+                      setForm((s) => ({
+                        ...s,
+                        verification_status: e.target.value,
+                      }))
+                    }
+                    placeholder="Inventory Master verification status"
+                  />
                 </div>
                 <div className="space-y-1 sm:col-span-2">
                   <Label htmlFor="inv-unit">Unit / tower / floor</Label>
