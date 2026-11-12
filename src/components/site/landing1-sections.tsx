@@ -451,7 +451,7 @@ export function CompareLanding1() {
 }
 
 /* ========================================================================== */
-/* 3. CONTACT (LANDING 1) — Karan Yadav (VP - Sales) + 1-Tap Budget Chips     */
+/* 3. CONTACT (LANDING 1) — Karan Yadav (SVP Sales) + 1-Tap Budget Chips     */
 /* ========================================================================== */
 
 const INTENT_OPTIONS: { id: Intent; label: string; hint: string }[] = [
@@ -536,7 +536,7 @@ export function ContactLanding1() {
               Share your details and we will call you back within one working day. No spam, no pressure.
             </p>
 
-            {/* Karan Yadav — VP - Sales Card */}
+            {/* Karan Yadav — SVP Sales Card */}
             <div className="mt-8 rounded-2xl border border-white/20 bg-ink/90 p-5 text-white shadow-lift backdrop-blur">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3.5">
@@ -546,7 +546,7 @@ export function ContactLanding1() {
                   </div>
                   <div>
                     <p className="text-base font-semibold text-white">Karan Yadav</p>
-                    <p className="text-xs font-medium text-gold">VP - Sales</p>
+                    <p className="text-xs font-medium text-gold">SVP Sales</p>
                   </div>
                 </div>
                 <a

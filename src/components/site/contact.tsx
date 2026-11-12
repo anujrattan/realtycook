@@ -102,7 +102,7 @@ export function Contact() {
                     <span className="absolute right-0 bottom-0 size-3 rounded-full border-2 border-ink bg-emerald-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-white">Karan Yadav · VP - Sales</p>
+                    <p className="text-sm font-semibold text-white">Karan Yadav · SVP Sales</p>
                     <p className="text-xs text-white/65">Residential, Commercial, Land &amp; Leasing Desk</p>
                   </div>
                 </div>
