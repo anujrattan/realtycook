@@ -51,3 +51,5 @@ next-env.d.ts
 # agent tooling
 agent-tools/
 .cursor/
+inventory-master.json
+supabase/.temp/

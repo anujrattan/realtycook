@@ -2,6 +2,7 @@
 
 import { CalendarClock, MapPin, MessageCircle, Send, X } from "lucide-react";
 import type { CrmLead, CrmLeadComment, CrmProperty, CrmUser, LeadStage } from "@/lib/crm-store";
+import { propertySummary } from "@/lib/crm-inventory";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -259,16 +260,24 @@ export function CrmLeadRecordModal({
                   </div>
                   <div className="mt-4">
                     <Label htmlFor="sv-prop" className="text-[11px] font-semibold text-indigo-900/55 uppercase">
-                      Property / location
+                      Suggested inventory
                     </Label>
-                    <input
+                    <select
                       id="sv-prop"
-                      type="text"
                       value={siteVisitProperty}
                       onChange={(e) => setSiteVisitProperty(e.target.value)}
-                      placeholder="e.g. Park-Facing 4 BHK · Sector 65"
                       className="mt-2 h-11 w-full rounded-2xl border border-indigo-200 bg-white px-3 text-sm text-ink"
-                    />
+                    >
+                      <option value="">Select from inventory…</option>
+                      {matchedProperties.map((prop) => (
+                        <option key={prop.id} value={prop.title}>
+                          {prop.title} · {prop.price_label}
+                        </option>
+                      ))}
+                    </select>
+                    {matchedProperties.length === 0 ? (
+                      <p className="mt-2 text-xs text-indigo-900/55">No inventory matches yet — upload Inventory Master first.</p>
+                    ) : null}
                   </div>
                   {lead.site_visit_date && (
                     <p className="mt-4 text-sm font-medium text-indigo-950">
@@ -289,10 +298,11 @@ export function CrmLeadRecordModal({
 
               {matchedProperties.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase">Matched inventory</p>
+                  <p className="text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase">Suggested from inventory</p>
                   <div className="mt-3 space-y-3">
-                    {matchedProperties.slice(0, 3).map((prop) => {
-                      const shareText = `Hi ${lead.name}, ${cleanAdvisorName(actor.name)} here from RealtyCook. Sharing a verified option:\n*${prop.title}* (${prop.locality})\n• Price: ${prop.price_label}\n• Specs: ${prop.specs}\n• Status: ${prop.verification_badge}`;
+                    {matchedProperties.slice(0, 5).map((prop) => {
+                      const summary = propertySummary(prop);
+                      const shareText = `Hi ${lead.name}, ${cleanAdvisorName(actor.name)} here from RealtyCook. Sharing a RealtyCook inventory option:\n*${prop.title}* (${prop.locality})\n• Price: ${prop.price_label}\n• Specs: ${summary}\n• Status: ${prop.verification_badge}`;
                       const digits = lead.phone.replace(/\D/g, "");
                       const clean = digits.length === 10 ? `91${digits}` : digits;
                       const shareUrl = `https://wa.me/${clean}?text=${encodeURIComponent(shareText)}`;
@@ -305,15 +315,25 @@ export function CrmLeadRecordModal({
                                 {prop.locality} ·{" "}
                                 <span className="font-semibold text-brand-red">{prop.price_label}</span>
                               </p>
+                              <p className="mt-1 truncate text-[11px] text-ink/45">{summary}</p>
                             </div>
-                            <a
-                              href={shareUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="shrink-0 rounded-full bg-[#25D366] px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#1ebe5d]"
-                            >
-                              Share
-                            </a>
+                            <div className="flex shrink-0 flex-col gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setSiteVisitProperty(prop.title)}
+                                className="rounded-full border border-indigo-200 bg-white px-3 py-1.5 text-[11px] font-bold text-indigo-800 hover:bg-indigo-50"
+                              >
+                                Use
+                              </button>
+                              <a
+                                href={shareUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="rounded-full bg-[#25D366] px-3 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#1ebe5d]"
+                              >
+                                Share
+                              </a>
+                            </div>
                           </div>
                         </div>
                       );

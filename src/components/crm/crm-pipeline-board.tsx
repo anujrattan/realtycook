@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, GripVertical, Kanban, LayoutList, MapPin, MessageCircle, Search } from "lucide-react";
+import { Clock, GripVertical, LayoutGrid, List, MapPin, MessageCircle, Search } from "lucide-react";
 import type { CrmLead, CrmUser, LeadStage } from "@/lib/crm-store";
 import { cn } from "@/lib/utils";
 import {
@@ -94,26 +94,30 @@ export function CrmPipelineBoard({
           </div>
         </div>
 
-        <div className="flex items-center gap-1 rounded-xl border border-border bg-cream p-1">
+        <div className="inline-flex rounded-2xl border border-border bg-white p-1 shadow-soft">
           <button
             type="button"
             onClick={() => setViewMode("kanban")}
             className={cn(
-              "flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold",
-              viewMode === "kanban" ? "bg-white text-ink shadow-2xs" : "text-ink/55",
+              "inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold",
+              viewMode === "kanban" ? "bg-brand-red text-white" : "text-ink/60 hover:text-ink",
             )}
+            aria-pressed={viewMode === "kanban"}
           >
-            <Kanban className="size-3.5" /> Board
+            <LayoutGrid className="size-3.5" />
+            Cards
           </button>
           <button
             type="button"
             onClick={() => setViewMode("list")}
             className={cn(
-              "flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold",
-              viewMode === "list" ? "bg-white text-ink shadow-2xs" : "text-ink/55",
+              "inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold",
+              viewMode === "list" ? "bg-brand-red text-white" : "text-ink/60 hover:text-ink",
             )}
+            aria-pressed={viewMode === "list"}
           >
-            <LayoutList className="size-3.5" /> Table
+            <List className="size-3.5" />
+            List
           </button>
         </div>
       </div>

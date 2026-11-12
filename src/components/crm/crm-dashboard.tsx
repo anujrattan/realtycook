@@ -31,6 +31,7 @@ import {
 import { CrmSidebar } from "@/components/crm/crm-sidebar";
 import { CrmTeamView } from "@/components/crm/crm-team-view";
 import { CrmTopbar } from "@/components/crm/crm-topbar";
+import { suggestInventoryForLead } from "@/lib/crm-inventory";
 import {
   newCrmId,
   type CrmLead,
@@ -209,12 +210,10 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
     [snapshot.comments, selectedLeadId],
   );
 
-  const matchedProperties = useMemo(() => {
-    if (!selectedLead) return snapshot.properties;
-    return snapshot.properties.filter(
-      (p) => p.pillar === selectedLead.pillar || p.budget_bracket === selectedLead.budget,
-    );
-  }, [snapshot.properties, selectedLead]);
+  const matchedProperties = useMemo(
+    () => suggestInventoryForLead(snapshot.properties, selectedLead, 8),
+    [snapshot.properties, selectedLead],
+  );
 
   const recentActivity = useMemo(
     () =>
@@ -839,7 +838,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
     },
     inventory: {
       title: "Verified Inventory",
-      subtitle: "Any CRM user can add properties. Each card shows who added it.",
+      subtitle: "Inventory Master units — filter, switch card/list view, expand a row for full details.",
     },
     team: {
       title: "User Management",

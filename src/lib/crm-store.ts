@@ -586,7 +586,8 @@ export async function getCrmSnapshot(): Promise<CrmStateSnapshot> {
           closure_reason: normalizeStageReason(lead.closure_reason, lead.stage),
         })),
         comments,
-        properties: properties.length ? properties : SEED_PROPERTIES,
+        // Prefer live inventory rows. Only fall back to demo seed when the table is empty.
+        properties: properties.length ? properties : [],
       };
     } catch (err) {
       console.warn("[crm-store] Supabase query failed, falling back to memory store:", err);
