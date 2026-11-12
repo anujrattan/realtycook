@@ -41,14 +41,14 @@ alter table public.crm_properties
   add column if not exists internal_notes text,
   add column if not exists last_updated timestamptz;
 
-create index if not exists idx_crm_properties_city on public.crm_properties(city)
-create index if not exists idx_crm_properties_property_type on public.crm_properties(property_type)
-create index if not exists idx_crm_properties_configuration on public.crm_properties(configuration)
-create index if not exists idx_crm_properties_possession on public.crm_properties(possession_status)
-create index if not exists idx_crm_properties_furnishing on public.crm_properties(furnishing_status)
-create index if not exists idx_crm_properties_verification_status on public.crm_properties(verification_status)
-create index if not exists idx_crm_properties_quoted_price on public.crm_properties(quoted_price)
-create index if not exists idx_crm_properties_project_name on public.crm_properties(project_name)
+create index if not exists idx_crm_properties_city on public.crm_properties(city);
+create index if not exists idx_crm_properties_property_type on public.crm_properties(property_type);
+create index if not exists idx_crm_properties_configuration on public.crm_properties(configuration);
+create index if not exists idx_crm_properties_possession on public.crm_properties(possession_status);
+create index if not exists idx_crm_properties_furnishing on public.crm_properties(furnishing_status);
+create index if not exists idx_crm_properties_verification_status on public.crm_properties(verification_status);
+create index if not exists idx_crm_properties_quoted_price on public.crm_properties(quoted_price);
+create index if not exists idx_crm_properties_project_name on public.crm_properties(project_name);
 
 -- Clean prior Inventory Master imports
 delete from public.crm_properties where added_by_name = 'Inventory Master';
