@@ -93,9 +93,8 @@ create index if not exists idx_crm_lead_comments_created_at on public.crm_lead_c
 alter table public.crm_lead_comments enable row level security;
 
 -- 4. Verified inventory (Inventory Master sheet)
--- Display columns below are always present. Full sheet fields are stored as JSON in `specs`
--- ({ summary, inventory }) until migration 20261112163000_expand_crm_properties_inventory.sql
--- is applied for first-class filter columns.
+-- Seed + column expansion: supabase/migrations/20261112170000_inventory_master_schema_and_seed.sql
+-- `specs` also keeps JSON { summary, inventory } for UI compatibility.
 create table if not exists public.crm_properties (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -110,11 +109,51 @@ create table if not exists public.crm_properties (
   added_by_name text not null default 'System',
   added_by_role text not null default 'admin',
   active boolean not null default true,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  project_name text,
+  property_type text,
+  city text,
+  locality_area text,
+  developer_name text,
+  rera_number text,
+  listing_link text,
+  configuration text,
+  unit_details text,
+  super_area_sqft numeric,
+  builtup_area_sqft numeric,
+  carpet_area_sqft numeric,
+  bathrooms numeric,
+  availability_status text,
+  possession_status text,
+  expected_possession_date date,
+  quoted_price numeric,
+  price_per_sqft numeric,
+  plc_notes text,
+  ifms_amount numeric,
+  club_charges numeric,
+  other_charges numeric,
+  charges_included text,
+  price_list_link text,
+  parking_included text,
+  additional_parking_cost numeric,
+  furnishing_status text,
+  appliances_included text,
+  power_backup text,
+  gas_pipeline text,
+  amenities text,
+  verification_status text,
+  price_verified_date date,
+  availability_verified_date date,
+  source_links text,
+  assigned_to_email text,
+  internal_notes text,
+  last_updated timestamptz
 );
 
 create index if not exists idx_crm_properties_active on public.crm_properties(active);
 create index if not exists idx_crm_properties_created_at on public.crm_properties(created_at desc);
+create index if not exists idx_crm_properties_city on public.crm_properties(city);
+create index if not exists idx_crm_properties_project_name on public.crm_properties(project_name);
 
 alter table public.crm_properties enable row level security;
 
