@@ -12,9 +12,17 @@
 
 export type UserRole = "superadmin" | "admin" | "sales";
 
-/** Inventory create/edit is limited to Superadmin + Admin. */
-export function canManageInventory(role: UserRole | null | undefined) {
-  return role === "superadmin" || role === "admin";
+/** Inventory create/edit: Superadmin, Admin, and SVP Sales (not regular Sales). */
+export function canManageInventory(
+  actor: { role?: UserRole | null; designation?: string | null } | UserRole | null | undefined,
+) {
+  if (actor == null) return false;
+  if (typeof actor === "string") {
+    return actor === "superadmin" || actor === "admin";
+  }
+  if (actor.role === "superadmin" || actor.role === "admin") return true;
+  const designation = (actor.designation || "").trim().toLowerCase();
+  return designation === "svp sales";
 }
 
 /** Always generate a UUID so memory-store IDs stay compatible with Supabase uuid columns. */
@@ -806,8 +814,8 @@ export async function addCrmProperty(params: {
   const snap = await getCrmSnapshot();
   const actor = snap.users.find((u) => u.id === params.actorId);
   if (!actor) return { ok: false, error: "Unauthorized actor." };
-  if (!canManageInventory(actor.role)) {
-    return { ok: false, error: "Only Superadmin and Admin can add inventory." };
+  if (!canManageInventory(actor)) {
+    return { ok: false, error: "Only Superadmin, Admin, and SVP Sales can add inventory." };
   }
 
   const title = params.title.trim();
@@ -949,8 +957,8 @@ export async function updateCrmProperty(params: {
   const snap = await getCrmSnapshot();
   const actor = snap.users.find((u) => u.id === params.actorId);
   if (!actor) return { ok: false, error: "Unauthorized actor." };
-  if (!canManageInventory(actor.role)) {
-    return { ok: false, error: "Only Superadmin and Admin can edit inventory." };
+  if (!canManageInventory(actor)) {
+    return { ok: false, error: "Only Superadmin, Admin, and SVP Sales can edit inventory." };
   }
 
   const existing = snap.properties.find((p) => p.id === params.propertyId);

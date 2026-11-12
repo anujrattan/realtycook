@@ -437,8 +437,8 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
     }
 
     if (action === "add_property") {
-      if (!canManageInventory(actor.role)) {
-        setBannerError("Only Superadmin and Admin can add inventory.");
+      if (!canManageInventory(actor)) {
+        setBannerError("Only Superadmin, Admin, and SVP Sales can add inventory.");
         return false;
       }
       const title = String(body.title ?? "").trim();
@@ -469,8 +469,8 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
     }
 
     if (action === "update_property") {
-      if (!canManageInventory(actor.role)) {
-        setBannerError("Only Superadmin and Admin can edit inventory.");
+      if (!canManageInventory(actor)) {
+        setBannerError("Only Superadmin, Admin, and SVP Sales can edit inventory.");
         return false;
       }
       const propertyId = String(body.propertyId ?? "");
@@ -1079,7 +1079,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
               properties={snapshot.properties}
               selectedPropertyId={selectedPropertyId}
               onSelectProperty={setSelectedPropertyId}
-              canManageInventory={canManageInventory(actor.role)}
+              canManageInventory={canManageInventory(actor)}
               onAddProperty={() => setShowAddProperty(true)}
             />
           )}
@@ -1116,7 +1116,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
       {selectedProperty && (
         <CrmInventoryRecordModal
           property={selectedProperty}
-          canEdit={canManageInventory(actor.role)}
+          canEdit={canManageInventory(actor)}
           busy={busy}
           onClose={() => setSelectedPropertyId(null)}
           onSave={handleSaveInventory}
@@ -1199,7 +1199,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
       />
 
       <CrmAddPropertyModal
-        open={showAddProperty && canManageInventory(actor.role)}
+        open={showAddProperty && canManageInventory(actor)}
         onClose={() => setShowAddProperty(false)}
         busy={busy}
         actor={actor}
