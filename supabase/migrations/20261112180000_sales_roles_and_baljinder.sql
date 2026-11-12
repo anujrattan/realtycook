@@ -1,11 +1,12 @@
--- Demote Karan + Ishan to sales, add Baljinder Kaur (sales).
+-- Karan + Ishan: sales role with SVP Sales designation (no inventory edit).
+-- Baljinder Kaur: sales (strict sales; no inventory edit).
 -- Temp password for new auth user: RealtyCook#ChangeMe1
 
 -- 1) Role updates on CRM profiles
 update public.crm_users
 set
   role = 'sales',
-  designation = 'Sales'
+  designation = 'SVP Sales'
 where id in (
   '1e5c864f-af1d-4349-a4b3-f63946decdba', -- Karan Yadav
   '83949b21-3a79-4927-b645-101c5bbce73c'  -- Ishan Kaushal
