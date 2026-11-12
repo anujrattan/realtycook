@@ -34,6 +34,7 @@ import { CrmTeamView } from "@/components/crm/crm-team-view";
 import { CrmTopbar } from "@/components/crm/crm-topbar";
 import { suggestInventoryForLead } from "@/lib/crm-inventory";
 import {
+  canManageInventory,
   newCrmId,
   type CrmLead,
   CrmProperty,
@@ -45,6 +46,7 @@ import {
   StageReason,
   UserRole,
 } from "@/lib/crm-store";
+import type { InventoryEditForm } from "@/components/crm/crm-inventory-record-modal";
 import { cn } from "@/lib/utils";
 
 export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSnapshot }) {
@@ -435,6 +437,10 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
     }
 
     if (action === "add_property") {
+      if (!canManageInventory(actor.role)) {
+        setBannerError("Only Superadmin and Admin can add inventory.");
+        return false;
+      }
       const title = String(body.title ?? "").trim();
       const locality = String(body.locality ?? "").trim();
       const price_label = String(body.price_label ?? "").trim();
@@ -459,6 +465,76 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
         active: true,
       };
       saveLocalSnapshot({ ...snapshot, properties: [prop, ...snapshot.properties] });
+      return true;
+    }
+
+    if (action === "update_property") {
+      if (!canManageInventory(actor.role)) {
+        setBannerError("Only Superadmin and Admin can edit inventory.");
+        return false;
+      }
+      const propertyId = String(body.propertyId ?? "");
+      const existing = snapshot.properties.find((p) => p.id === propertyId);
+      if (!existing) {
+        setBannerError("Inventory unit not found.");
+        return false;
+      }
+      let inventory: Record<string, unknown> = {};
+      let summary = String(body.summary ?? "");
+      try {
+        const parsed = JSON.parse(existing.specs || "{}") as {
+          summary?: string;
+          inventory?: Record<string, unknown>;
+        };
+        inventory = { ...(parsed.inventory || {}) };
+        summary = summary || parsed.summary || "";
+      } catch {
+        summary = summary || existing.specs;
+      }
+      const invPatchKeys = [
+        "project_name",
+        "property_type",
+        "city",
+        "locality_area",
+        "developer_name",
+        "rera_number",
+        "configuration",
+        "unit_details",
+        "possession_status",
+        "availability_status",
+        "furnishing_status",
+        "verification_status",
+        "amenities",
+        "internal_notes",
+        "parking_included",
+        "power_backup",
+      ] as const;
+      for (const key of invPatchKeys) {
+        if (body[key] !== undefined) inventory[key] = body[key];
+      }
+      if (body.quoted_price !== undefined) {
+        inventory.quoted_price =
+          body.quoted_price === "" || body.quoted_price == null ? null : Number(body.quoted_price);
+      }
+      if (body.price_per_sqft !== undefined) {
+        inventory.price_per_sqft =
+          body.price_per_sqft === "" || body.price_per_sqft == null ? null : Number(body.price_per_sqft);
+      }
+      const next: CrmProperty = {
+        ...existing,
+        title: String(body.title ?? existing.title),
+        locality: String(body.locality ?? existing.locality),
+        price_label: String(body.price_label ?? existing.price_label),
+        budget_bracket: String(body.budget_bracket ?? existing.budget_bracket),
+        pillar: (body.pillar as ServicePillar) ?? existing.pillar,
+        intent: (body.intent as LeadIntent) ?? existing.intent,
+        verification_badge: String(body.verification_badge ?? existing.verification_badge),
+        specs: JSON.stringify({ summary: summary || "Inventory unit", inventory }),
+      };
+      saveLocalSnapshot({
+        ...snapshot,
+        properties: snapshot.properties.map((p) => (p.id === propertyId ? next : p)),
+      });
       return true;
     }
 
@@ -736,6 +812,15 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
     }
   }
 
+  async function handleSaveInventory(form: InventoryEditForm) {
+    if (!selectedPropertyId) return false;
+    return postCrmAction({
+      action: "update_property",
+      propertyId: selectedPropertyId,
+      ...form,
+    });
+  }
+
   async function handleAddProperty(e: React.FormEvent) {
     e.preventDefault();
     const ok = await postCrmAction({ action: "add_property", ...propertyForm });
@@ -994,6 +1079,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
               properties={snapshot.properties}
               selectedPropertyId={selectedPropertyId}
               onSelectProperty={setSelectedPropertyId}
+              canManageInventory={canManageInventory(actor.role)}
               onAddProperty={() => setShowAddProperty(true)}
             />
           )}
@@ -1030,7 +1116,10 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
       {selectedProperty && (
         <CrmInventoryRecordModal
           property={selectedProperty}
+          canEdit={canManageInventory(actor.role)}
+          busy={busy}
           onClose={() => setSelectedPropertyId(null)}
+          onSave={handleSaveInventory}
         />
       )}
 
@@ -1110,7 +1199,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
       />
 
       <CrmAddPropertyModal
-        open={showAddProperty}
+        open={showAddProperty && canManageInventory(actor.role)}
         onClose={() => setShowAddProperty(false)}
         busy={busy}
         actor={actor}

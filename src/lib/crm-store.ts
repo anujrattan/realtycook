@@ -12,6 +12,11 @@
 
 export type UserRole = "superadmin" | "admin" | "sales";
 
+/** Inventory create/edit is limited to Superadmin + Admin. */
+export function canManageInventory(role: UserRole | null | undefined) {
+  return role === "superadmin" || role === "admin";
+}
+
 /** Always generate a UUID so memory-store IDs stay compatible with Supabase uuid columns. */
 export function newCrmId() {
   return crypto.randomUUID();
@@ -232,8 +237,8 @@ const SEED_USERS: CrmUser[] = [
     name: "Karan Yadav",
     email: "karanrealtycook@gmail.com",
     phone: "919056050813",
-    role: "admin",
-    designation: "SVP Sales",
+    role: "sales",
+    designation: "Sales",
     active: true,
     created_at: "2026-10-01T09:10:00.000Z",
   },
@@ -242,10 +247,20 @@ const SEED_USERS: CrmUser[] = [
     name: "Ishan Kaushal",
     email: "ishanrealtycook@gmail.com",
     phone: "919056060813",
-    role: "admin",
-    designation: "SVP Sales",
+    role: "sales",
+    designation: "Sales",
     active: true,
     created_at: "2026-10-01T09:15:00.000Z",
+  },
+  {
+    id: "b7e2c914-6a5f-4d8e-9c1b-3f8a0d2e5c71",
+    name: "Baljinder Kaur",
+    email: "realtycookbaljinder@gmail.com",
+    phone: "919056030813",
+    role: "sales",
+    designation: "Sales",
+    active: true,
+    created_at: "2026-11-12T10:00:00.000Z",
   },
 ];
 
@@ -427,7 +442,7 @@ const SEED_PROPERTIES: CrmProperty[] = [
     verification_badge: "OC & Title Verified",
     added_by_id: "1e5c864f-af1d-4349-a4b3-f63946decdba",
     added_by_name: "Karan Yadav",
-    added_by_role: "admin",
+    added_by_role: "sales",
     created_at: "2026-10-12T10:00:00.000Z",
     active: true,
   },
@@ -443,7 +458,7 @@ const SEED_PROPERTIES: CrmProperty[] = [
     verification_badge: "Freehold & Walked",
     added_by_id: "1e5c864f-af1d-4349-a4b3-f63946decdba",
     added_by_name: "Karan Yadav",
-    added_by_role: "admin",
+    added_by_role: "sales",
     created_at: "2026-10-15T14:20:00.000Z",
     active: true,
   },
@@ -459,7 +474,7 @@ const SEED_PROPERTIES: CrmProperty[] = [
     verification_badge: "Frontage & NOC Checked",
     added_by_id: "83949b21-3a79-4927-b645-101c5bbce73c",
     added_by_name: "Ishan Kaushal",
-    added_by_role: "admin",
+    added_by_role: "sales",
     created_at: "2026-10-18T11:30:00.000Z",
     active: true,
   },
@@ -475,7 +490,7 @@ const SEED_PROPERTIES: CrmProperty[] = [
     verification_badge: "Boundary Pillars Walked",
     added_by_id: "83949b21-3a79-4927-b645-101c5bbce73c",
     added_by_name: "Ishan Kaushal",
-    added_by_role: "admin",
+    added_by_role: "sales",
     created_at: "2026-10-21T09:45:00.000Z",
     active: true,
   },
@@ -507,7 +522,7 @@ const SEED_PROPERTIES: CrmProperty[] = [
     verification_badge: "Ready for Fit-Out",
     added_by_id: "83949b21-3a79-4927-b645-101c5bbce73c",
     added_by_name: "Ishan Kaushal",
-    added_by_role: "admin",
+    added_by_role: "sales",
     created_at: "2026-10-28T12:00:00.000Z",
     active: true,
   },
@@ -791,6 +806,9 @@ export async function addCrmProperty(params: {
   const snap = await getCrmSnapshot();
   const actor = snap.users.find((u) => u.id === params.actorId);
   if (!actor) return { ok: false, error: "Unauthorized actor." };
+  if (!canManageInventory(actor.role)) {
+    return { ok: false, error: "Only Superadmin and Admin can add inventory." };
+  }
 
   const title = params.title.trim();
   const locality = params.locality.trim();
@@ -846,6 +864,177 @@ export async function addCrmProperty(params: {
   };
   mem.properties.unshift(newProp);
   return { ok: true, property: newProp };
+}
+
+export type CrmPropertyUpdateInput = {
+  title?: string;
+  pillar?: ServicePillar;
+  intent?: LeadIntent;
+  locality?: string;
+  price_label?: string;
+  budget_bracket?: string;
+  verification_badge?: string;
+  active?: boolean;
+  // Inventory Master fields (also synced into specs JSON)
+  project_name?: string | null;
+  property_type?: string | null;
+  city?: string | null;
+  locality_area?: string | null;
+  developer_name?: string | null;
+  rera_number?: string | null;
+  configuration?: string | null;
+  unit_details?: string | null;
+  possession_status?: string | null;
+  availability_status?: string | null;
+  furnishing_status?: string | null;
+  verification_status?: string | null;
+  quoted_price?: number | null;
+  price_per_sqft?: number | null;
+  amenities?: string | null;
+  internal_notes?: string | null;
+  parking_included?: string | null;
+  power_backup?: string | null;
+  summary?: string | null;
+};
+
+function mergePropertySpecs(existingSpecs: string, patch: CrmPropertyUpdateInput) {
+  let summary = patch.summary?.trim() || "";
+  let inventory: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(existingSpecs || "{}") as { summary?: string; inventory?: Record<string, unknown> };
+    if (parsed && typeof parsed === "object") {
+      summary = summary || parsed.summary || "";
+      inventory = { ...(parsed.inventory || {}) };
+    }
+  } catch {
+    summary = summary || existingSpecs || "";
+  }
+
+  const invKeys: Array<keyof CrmPropertyUpdateInput> = [
+    "project_name",
+    "property_type",
+    "city",
+    "locality_area",
+    "developer_name",
+    "rera_number",
+    "configuration",
+    "unit_details",
+    "possession_status",
+    "availability_status",
+    "furnishing_status",
+    "verification_status",
+    "quoted_price",
+    "price_per_sqft",
+    "amenities",
+    "internal_notes",
+    "parking_included",
+    "power_backup",
+  ];
+  for (const key of invKeys) {
+    if (patch[key] !== undefined) inventory[key] = patch[key];
+  }
+  if (!summary) {
+    summary = [inventory.configuration, inventory.possession_status, inventory.furnishing_status]
+      .filter(Boolean)
+      .join(" · ");
+  }
+  return JSON.stringify({ summary: summary || "Inventory unit", inventory });
+}
+
+export async function updateCrmProperty(params: {
+  actorId: string;
+  propertyId: string;
+  patch: CrmPropertyUpdateInput;
+}): Promise<{ ok: true; property: CrmProperty } | { ok: false; error: string }> {
+  const snap = await getCrmSnapshot();
+  const actor = snap.users.find((u) => u.id === params.actorId);
+  if (!actor) return { ok: false, error: "Unauthorized actor." };
+  if (!canManageInventory(actor.role)) {
+    return { ok: false, error: "Only Superadmin and Admin can edit inventory." };
+  }
+
+  const existing = snap.properties.find((p) => p.id === params.propertyId);
+  if (!existing) return { ok: false, error: "Inventory unit not found." };
+
+  const title = (params.patch.title ?? existing.title).trim();
+  const locality = (params.patch.locality ?? existing.locality).trim();
+  const price_label = (params.patch.price_label ?? existing.price_label).trim();
+  if (title.length < 3 || locality.length < 2 || !price_label) {
+    return { ok: false, error: "Property title, locality, and price label are required." };
+  }
+
+  const specs = mergePropertySpecs(existing.specs, params.patch);
+  const body: Record<string, unknown> = {
+    title,
+    locality,
+    price_label,
+    pillar: params.patch.pillar ?? existing.pillar,
+    intent: params.patch.intent ?? existing.intent,
+    budget_bracket: params.patch.budget_bracket ?? existing.budget_bracket,
+    verification_badge: (params.patch.verification_badge ?? existing.verification_badge).trim(),
+    specs,
+    active: params.patch.active ?? existing.active,
+  };
+
+  // Persist first-class inventory columns when present in DB.
+  const columnKeys: Array<keyof CrmPropertyUpdateInput> = [
+    "project_name",
+    "property_type",
+    "city",
+    "locality_area",
+    "developer_name",
+    "rera_number",
+    "configuration",
+    "unit_details",
+    "possession_status",
+    "availability_status",
+    "furnishing_status",
+    "verification_status",
+    "quoted_price",
+    "price_per_sqft",
+    "amenities",
+    "internal_notes",
+    "parking_included",
+    "power_backup",
+  ];
+  for (const key of columnKeys) {
+    if (params.patch[key] !== undefined) body[key] = params.patch[key];
+  }
+
+  const cfg = getSupabaseConfig();
+  if (cfg.enabled) {
+    try {
+      const updated = await sbFetch<CrmProperty[]>(
+        `crm_properties?id=eq.${encodeURIComponent(params.propertyId)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(body),
+          headers: { Prefer: "return=representation" },
+        },
+      );
+      if (updated[0]) return { ok: true, property: updated[0] };
+    } catch (err) {
+      console.warn("[crm-store] Supabase property update failed, using memory store:", err);
+    }
+  }
+
+  const mem = getMemoryStore();
+  const idx = mem.properties.findIndex((p) => p.id === params.propertyId);
+  if (idx < 0) return { ok: false, error: "Inventory unit not found." };
+  const next: CrmProperty = {
+    ...mem.properties[idx],
+    title,
+    locality,
+    price_label,
+    pillar: (params.patch.pillar ?? existing.pillar) as ServicePillar,
+    intent: (params.patch.intent ?? existing.intent) as LeadIntent,
+    budget_bracket: params.patch.budget_bracket ?? existing.budget_bracket,
+    verification_badge: (params.patch.verification_badge ?? existing.verification_badge).trim(),
+    specs,
+    active: params.patch.active ?? existing.active,
+  };
+  mem.properties[idx] = next;
+  return { ok: true, property: next };
 }
 
 export async function assignLeadWithRbac(params: {

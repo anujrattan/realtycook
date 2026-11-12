@@ -20,6 +20,7 @@ export type CrmInventoryViewProps = {
   properties: CrmProperty[];
   selectedPropertyId: string | null;
   onSelectProperty: (propertyId: string) => void;
+  canManageInventory: boolean;
   onAddProperty: () => void;
 };
 
@@ -77,6 +78,7 @@ export function CrmInventoryView({
   properties,
   selectedPropertyId,
   onSelectProperty,
+  canManageInventory,
   onAddProperty,
 }: CrmInventoryViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
@@ -139,10 +141,12 @@ export function CrmInventoryView({
               List
             </button>
           </div>
-          <Button onClick={onAddProperty} className="h-10 rounded-xl bg-brand-red text-white shadow-red">
-            <Plus className="size-4" />
-            Add Property
-          </Button>
+          {canManageInventory ? (
+            <Button onClick={onAddProperty} className="h-10 rounded-xl bg-brand-red text-white shadow-red">
+              <Plus className="size-4" />
+              Add Property
+            </Button>
+          ) : null}
         </div>
       </div>
 

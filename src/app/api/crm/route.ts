@@ -13,6 +13,7 @@ import {
   removeCrmUserWithRbac,
   type ServicePillar,
   type UserRole,
+  updateCrmProperty,
   updateLeadStageOrFollowup,
 } from "@/lib/crm-store";
 
@@ -100,7 +101,81 @@ export async function POST(request: Request) {
       verification_badge: String(payload.verification_badge ?? "Ground Verified"),
     });
     if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: 422 });
+      return NextResponse.json({ error: result.error }, { status: 403 });
+    }
+    const snapshot = await getCrmSnapshot();
+    return NextResponse.json({ ok: true, property: result.property, snapshot });
+  }
+
+  if (action === "update_property") {
+    const result = await updateCrmProperty({
+      actorId,
+      propertyId: String(payload.propertyId ?? ""),
+      patch: {
+        title: payload.title !== undefined ? String(payload.title) : undefined,
+        pillar: payload.pillar !== undefined ? (payload.pillar as ServicePillar) : undefined,
+        intent: payload.intent !== undefined ? (payload.intent as LeadIntent) : undefined,
+        locality: payload.locality !== undefined ? String(payload.locality) : undefined,
+        price_label: payload.price_label !== undefined ? String(payload.price_label) : undefined,
+        budget_bracket:
+          payload.budget_bracket !== undefined ? String(payload.budget_bracket) : undefined,
+        verification_badge:
+          payload.verification_badge !== undefined ? String(payload.verification_badge) : undefined,
+        active: payload.active !== undefined ? Boolean(payload.active) : undefined,
+        project_name: payload.project_name !== undefined ? String(payload.project_name || "") || null : undefined,
+        property_type: payload.property_type !== undefined ? String(payload.property_type || "") || null : undefined,
+        city: payload.city !== undefined ? String(payload.city || "") || null : undefined,
+        locality_area:
+          payload.locality_area !== undefined ? String(payload.locality_area || "") || null : undefined,
+        developer_name:
+          payload.developer_name !== undefined ? String(payload.developer_name || "") || null : undefined,
+        rera_number: payload.rera_number !== undefined ? String(payload.rera_number || "") || null : undefined,
+        configuration:
+          payload.configuration !== undefined ? String(payload.configuration || "") || null : undefined,
+        unit_details:
+          payload.unit_details !== undefined ? String(payload.unit_details || "") || null : undefined,
+        possession_status:
+          payload.possession_status !== undefined
+            ? String(payload.possession_status || "") || null
+            : undefined,
+        availability_status:
+          payload.availability_status !== undefined
+            ? String(payload.availability_status || "") || null
+            : undefined,
+        furnishing_status:
+          payload.furnishing_status !== undefined
+            ? String(payload.furnishing_status || "") || null
+            : undefined,
+        verification_status:
+          payload.verification_status !== undefined
+            ? String(payload.verification_status || "") || null
+            : undefined,
+        quoted_price:
+          payload.quoted_price !== undefined && payload.quoted_price !== ""
+            ? Number(payload.quoted_price)
+            : payload.quoted_price === "" || payload.quoted_price === null
+              ? null
+              : undefined,
+        price_per_sqft:
+          payload.price_per_sqft !== undefined && payload.price_per_sqft !== ""
+            ? Number(payload.price_per_sqft)
+            : payload.price_per_sqft === "" || payload.price_per_sqft === null
+              ? null
+              : undefined,
+        amenities: payload.amenities !== undefined ? String(payload.amenities || "") || null : undefined,
+        internal_notes:
+          payload.internal_notes !== undefined ? String(payload.internal_notes || "") || null : undefined,
+        parking_included:
+          payload.parking_included !== undefined
+            ? String(payload.parking_included || "") || null
+            : undefined,
+        power_backup:
+          payload.power_backup !== undefined ? String(payload.power_backup || "") || null : undefined,
+        summary: payload.summary !== undefined ? String(payload.summary || "") || null : undefined,
+      },
+    });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 403 });
     }
     const snapshot = await getCrmSnapshot();
     return NextResponse.json({ ok: true, property: result.property, snapshot });
