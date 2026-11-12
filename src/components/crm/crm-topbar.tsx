@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Shield, Upload } from "lucide-react";
+import { LogOut, Plus, Shield, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { CrmUser } from "@/lib/crm-store";
 import { cn } from "@/lib/utils";
@@ -9,18 +9,16 @@ export function CrmTopbar({
   title,
   subtitle,
   storageMode,
-  users,
   actor,
-  onActorChange,
+  onLogout,
   onBulkUpload,
   onNewLead,
 }: {
   title: string;
   subtitle: string;
   storageMode: "supabase" | "memory_fallback";
-  users: CrmUser[];
   actor: CrmUser;
-  onActorChange: (userId: string) => void;
+  onLogout: () => void;
   onBulkUpload: () => void;
   onNewLead: () => void;
 }) {
@@ -44,19 +42,12 @@ export function CrmTopbar({
 
         <div className="flex shrink-0 items-center gap-2 rounded-2xl border border-border bg-cream px-3 py-1.5">
           <Shield className="size-4 text-brand-red" />
-          <span className="text-xs font-medium text-ink/60">Acting as:</span>
-          <select
-            aria-label="Switch active CRM user account"
-            value={actor?.id ?? ""}
-            onChange={(e) => onActorChange(e.target.value)}
-            className="max-w-[220px] bg-transparent text-xs font-semibold text-ink focus:outline-none"
-          >
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name} ({u.role.toUpperCase()})
-              </option>
-            ))}
-          </select>
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold text-ink">
+              {actor?.name} · {actor?.designation || actor?.role}
+            </p>
+            <p className="truncate text-[10px] text-ink/50">{actor?.email}</p>
+          </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
@@ -72,6 +63,18 @@ export function CrmTopbar({
           >
             <Plus className="size-4" />
             <span>New Lead</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onLogout}
+            className="h-10 rounded-xl bg-white px-3"
+            aria-label="Sign out"
+          >
+            <LogOut className="size-3.5" />
+            <span className="hidden sm:inline">Sign out</span>
           </Button>
         </div>
       </div>

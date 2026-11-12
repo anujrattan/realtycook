@@ -47,12 +47,23 @@ import {
   UserRole,
 } from "@/lib/crm-store";
 import type { InventoryEditForm } from "@/components/crm/crm-inventory-record-modal";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
-export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSnapshot }) {
+export function CrmDashboard({
+  initialSnapshot,
+  sessionUserId,
+}: {
+  initialSnapshot: CrmStateSnapshot;
+  sessionUserId: string;
+}) {
+  const router = useRouter();
   const [snapshot, setSnapshot] = useState<CrmStateSnapshot>(initialSnapshot);
   const [nowMs, setNowMs] = useState<number | null>(null);
-  const [actorId, setActorId] = useState<string>(initialSnapshot.users[0]?.id ?? "");
+  const [actorId, setActorId] = useState<string>(
+    sessionUserId || initialSnapshot.users[0]?.id || "",
+  );
   const [activeTab, setActiveTab] = useState<CrmNavId>("dashboard");
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
   const [followupBucket, setFollowupBucket] = useState<FollowupBucket>("all");
@@ -220,6 +231,21 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
         .slice(0, 25),
     [snapshot.comments],
   );
+
+  useEffect(() => {
+    if (sessionUserId) setActorId(sessionUserId);
+  }, [sessionUserId]);
+
+  async function handleLogout() {
+    try {
+      const supabase = createBrowserSupabaseClient();
+      await supabase.auth.signOut();
+    } catch {
+      // Still send user to login
+    }
+    router.replace("/login");
+    router.refresh();
+  }
 
   useEffect(() => {
     setNowMs(Date.now());
@@ -1018,12 +1044,9 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
           title={navTitles[activeTab].title}
           subtitle={navTitles[activeTab].subtitle}
           storageMode={snapshot.storageMode}
-          users={snapshot.users}
           actor={actor}
-          onActorChange={(id) => {
-            setActorId(id);
-            setHandledFollowupKeys(new Set());
-            setFollowupPopup(null);
+          onLogout={() => {
+            void handleLogout();
           }}
           onBulkUpload={() => setShowBulkUpload(true)}
           onNewLead={() => setShowNewLead(true)}

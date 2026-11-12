@@ -154,6 +154,7 @@ export interface CrmUser {
   designation: string;
   active: boolean;
   created_at: string;
+  must_reset_password?: boolean;
 }
 
 export interface CrmLeadComment {
@@ -557,7 +558,7 @@ function getMemoryStore(): MemoryStore {
   return globalForCrm.__realtyCookCrmStore;
 }
 
-function getSupabaseConfig() {
+export function getSupabaseConfig() {
   const url = (process.env.SUPABASE_URL ?? "").trim().replace(/\/$/, "");
   const key = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
   const hasCreds = Boolean(url && key && url.startsWith("http") && !url.includes("your-project-ref"));
@@ -1433,4 +1434,53 @@ export async function removeCrmUserWithRbac(params: {
     }
   }
   return { ok: true };
+}
+
+export async function getCrmUserById(userId: string): Promise<CrmUser | null> {
+  const cfg = getSupabaseConfig();
+  if (cfg.enabled) {
+    try {
+      const rows = await sbFetch<CrmUser[]>(
+        `crm_users?id=eq.${encodeURIComponent(userId)}&select=*&limit=1`,
+      );
+      return rows[0] ?? null;
+    } catch (err) {
+      console.warn("[crm-store] getCrmUserById failed:", err);
+    }
+  }
+  return getMemoryStore().users.find((u) => u.id === userId) ?? null;
+}
+
+/** Clear first-login reset flag in CRM + auth app_metadata (service role). */
+export async function clearMustResetPassword(userId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const cfg = getSupabaseConfig();
+  if (!cfg.enabled) {
+    const mem = getMemoryStore();
+    const u = mem.users.find((x) => x.id === userId);
+    if (u) u.must_reset_password = false;
+    return { ok: true };
+  }
+
+  try {
+    await sbFetch(`crm_users?id=eq.${encodeURIComponent(userId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ must_reset_password: false }),
+    });
+
+    const { createClient } = await import("@supabase/supabase-js");
+    const admin = createClient(cfg.url, cfg.key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const existing = await admin.auth.admin.getUserById(userId);
+    const priorMeta = (existing.data.user?.app_metadata ?? {}) as Record<string, unknown>;
+    const { error } = await admin.auth.admin.updateUserById(userId, {
+      app_metadata: { ...priorMeta, must_reset_password: false },
+    });
+    if (error) {
+      console.warn("[crm-store] clearMustResetPassword auth update warning:", error.message);
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Failed to clear reset flag." };
+  }
 }
