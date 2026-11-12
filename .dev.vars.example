@@ -1,0 +1,4 @@
+NEXTJS_ENV=development
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-secret-key
+REALTYCOOK_WHATSAPP_NUMBER=919056050813

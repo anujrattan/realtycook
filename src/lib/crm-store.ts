@@ -12,6 +12,11 @@
 
 export type UserRole = "superadmin" | "admin" | "sales";
 
+/** Always generate a UUID so memory-store IDs stay compatible with Supabase uuid columns. */
+export function newCrmId() {
+  return crypto.randomUUID();
+}
+
 export type LeadStage =
   | "new_enquiry"
   | "contacted"
@@ -203,60 +208,50 @@ export interface CrmStateSnapshot {
 
 const SEED_USERS: CrmUser[] = [
   {
-    id: "11111111-1111-4111-8111-111111111111",
-    name: "Anuj (Superadmin)",
-    email: "founder@realtycook.com",
-    phone: "919056050813",
+    id: "6605a758-8ee3-470d-ad64-14865ddae023",
+    name: "Anuj Rattan",
+    email: "rattan.anuj@gmail.com",
+    phone: "918558887123",
     role: "superadmin",
-    designation: "Founder & Superadmin",
+    designation: "Super Admin",
     active: true,
     created_at: "2026-10-01T09:00:00.000Z",
   },
   {
-    id: "22222222-2222-4222-8222-222222222222",
-    name: "Karan Yadav",
-    email: "karan@realtycook.com",
-    phone: "919056050813",
-    role: "admin",
-    designation: "VP - Sales",
+    id: "4eb4d5ac-6d70-4774-935f-006ee270b58d",
+    name: "Sahil Vaid",
+    email: "realtycookadmin@gmail.com",
+    phone: "917986000813",
+    role: "superadmin",
+    designation: "Super Admin",
     active: true,
     created_at: "2026-10-01T09:05:00.000Z",
   },
   {
-    id: "33333333-3333-4333-8333-333333333333",
-    name: "Riya Sharma",
-    email: "riya@realtycook.com",
-    phone: "919876543210",
-    role: "sales",
-    designation: "Sales Advisor — Homes & Kothis",
+    id: "1e5c864f-af1d-4349-a4b3-f63946decdba",
+    name: "Karan Yadav",
+    email: "karanrealtycook@gmail.com",
+    phone: "919056050813",
+    role: "admin",
+    designation: "SVP Sales",
     active: true,
-    created_at: "2026-10-05T10:00:00.000Z",
+    created_at: "2026-10-01T09:10:00.000Z",
   },
   {
-    id: "44444444-4444-4444-8444-444444444444",
-    name: "Aman Verma",
-    email: "aman@realtycook.com",
-    phone: "919876543211",
-    role: "sales",
-    designation: "Sales Advisor — Commercial & Leasing",
+    id: "83949b21-3a79-4927-b645-101c5bbce73c",
+    name: "Ishan Kaushal",
+    email: "ishanrealtycook@gmail.com",
+    phone: "919056060813",
+    role: "admin",
+    designation: "SVP Sales",
     active: true,
-    created_at: "2026-10-06T10:00:00.000Z",
-  },
-  {
-    id: "55555555-5555-4555-8555-555555555555",
-    name: "Vikram Singh",
-    email: "vikram@realtycook.com",
-    phone: "919876543212",
-    role: "sales",
-    designation: "Sales Advisor — Plots & New Launches",
-    active: true,
-    created_at: "2026-10-07T10:00:00.000Z",
+    created_at: "2026-10-01T09:15:00.000Z",
   },
 ];
 
 const SEED_LEADS: CrmLead[] = [
   {
-    id: "lead-101",
+    id: "b9a84b14-518e-47e4-a205-a9da7150b2b0",
     name: "Rajesh Malhotra",
     phone: "919811223344",
     email: "rajesh.m@example.com",
@@ -266,7 +261,7 @@ const SEED_LEADS: CrmLead[] = [
     budget: "3-10cr",
     stage: "site_visit_scheduled",
     source: "Website Hero",
-    assigned_to: "33333333-3333-4333-8333-333333333333",
+    assigned_to: "1e5c864f-af1d-4349-a4b3-f63946decdba",
     next_followup_at: "2026-11-03T11:00:00.000Z",
     site_visit_date: "2026-11-07",
     site_visit_time: "11:00",
@@ -277,7 +272,7 @@ const SEED_LEADS: CrmLead[] = [
     updated_at: "2026-11-03T10:00:00.000Z",
   },
   {
-    id: "lead-102",
+    id: "d16a7fe7-dcd2-4a00-8cc1-9cbf3a43640c",
     name: "Saurabh Bansal",
     phone: "919822334455",
     email: "saurabh@bansalretail.in",
@@ -287,7 +282,7 @@ const SEED_LEADS: CrmLead[] = [
     budget: "3-10cr",
     stage: "meeting",
     source: "Website Contact",
-    assigned_to: "44444444-4444-4444-8444-444444444444",
+    assigned_to: "83949b21-3a79-4927-b645-101c5bbce73c",
     next_followup_at: "2026-11-04T10:30:00.000Z",
     closure_reason: null,
     notes_summary: "Wants a main-road double-height showroom with clear parking. Shared 2 verified options on WhatsApp.",
@@ -295,7 +290,7 @@ const SEED_LEADS: CrmLead[] = [
     updated_at: "2026-11-04T06:00:00.000Z",
   },
   {
-    id: "lead-103",
+    id: "098949f1-a975-4035-abcb-5cb00b6d00d9",
     name: "Neha Kapoor",
     phone: "919833445566",
     email: "neha.kapoor@example.com",
@@ -305,7 +300,7 @@ const SEED_LEADS: CrmLead[] = [
     budget: "1-3cr",
     stage: "contacted",
     source: "WhatsApp Bubble",
-    assigned_to: "55555555-5555-4555-8555-555555555555",
+    assigned_to: "83949b21-3a79-4927-b645-101c5bbce73c",
     next_followup_at: "2026-11-04T12:30:00.000Z",
     closure_reason: null,
     notes_summary: "Looking for 250–300 sq.yd approved plot on 30m sector road for 5-year hold.",
@@ -313,7 +308,7 @@ const SEED_LEADS: CrmLead[] = [
     updated_at: "2026-11-04T07:00:00.000Z",
   },
   {
-    id: "lead-104",
+    id: "d91b8aea-8683-44e3-8188-48fd8464cee7",
     name: "Dr. Vivek Arora",
     phone: "919844556677",
     email: "dr.vivek@aroraclinic.com",
@@ -323,7 +318,7 @@ const SEED_LEADS: CrmLead[] = [
     budget: "50l-1cr",
     stage: "negotiation",
     source: "Direct Referral",
-    assigned_to: "44444444-4444-4444-8444-444444444444",
+    assigned_to: "83949b21-3a79-4927-b645-101c5bbce73c",
     next_followup_at: "2026-11-05T11:00:00.000Z",
     closure_reason: null,
     notes_summary: "Need 1,800 sq.ft ground-floor space on 9-year lease with 3-year lock-in. Finalising LOI terms.",
@@ -331,7 +326,7 @@ const SEED_LEADS: CrmLead[] = [
     updated_at: "2026-11-04T08:00:00.000Z",
   },
   {
-    id: "lead-105",
+    id: "40f093f8-0c1e-4696-9b35-3a7811fc880d",
     name: "Harpreet Gill",
     phone: "919855667788",
     email: "harpreet.g@example.com",
@@ -341,7 +336,7 @@ const SEED_LEADS: CrmLead[] = [
     budget: "1-3cr",
     stage: "new_enquiry",
     source: "Website Contact",
-    assigned_to: "22222222-2222-4222-8222-222222222222",
+    assigned_to: "1e5c864f-af1d-4349-a4b3-f63946decdba",
     next_followup_at: "2026-11-03T15:00:00.000Z",
     closure_reason: null,
     notes_summary: "Enquired about RERA-verified 3 BHK new launch with construction-linked payment plan.",
@@ -349,7 +344,7 @@ const SEED_LEADS: CrmLead[] = [
     updated_at: "2026-11-02T14:00:00.000Z",
   },
   {
-    id: "lead-106",
+    id: "23e5df67-84a6-4892-afa6-e2ab53a1e2b6",
     name: "Vikramaditya Sodhi",
     phone: "919877001122",
     email: "vsodhi@sodhigroup.com",
@@ -359,7 +354,7 @@ const SEED_LEADS: CrmLead[] = [
     budget: "10cr-plus",
     stage: "negotiation",
     source: "Direct Referral",
-    assigned_to: "22222222-2222-4222-8222-222222222222",
+    assigned_to: "1e5c864f-af1d-4349-a4b3-f63946decdba",
     next_followup_at: "2026-11-06T10:00:00.000Z",
     closure_reason: null,
     notes_summary: "1 Kanal freehold kothi requirement. Reviewing title search and mutation history with legal desk.",
@@ -367,7 +362,7 @@ const SEED_LEADS: CrmLead[] = [
     updated_at: "2026-11-04T07:30:00.000Z",
   },
   {
-    id: "lead-107",
+    id: "e14e3f7f-9104-480f-9671-13662a227422",
     name: "Meera Chopra",
     phone: "919866778899",
     email: "meera.chopra@example.com",
@@ -377,7 +372,7 @@ const SEED_LEADS: CrmLead[] = [
     budget: "1-3cr",
     stage: "closed",
     source: "Website Contact",
-    assigned_to: "33333333-3333-4333-8333-333333333333",
+    assigned_to: "1e5c864f-af1d-4349-a4b3-f63946decdba",
     next_followup_at: null,
     closure_reason: "already_purchased",
     notes_summary: "Called back — already booked a flat last week. Closed after first conversation.",
@@ -388,31 +383,31 @@ const SEED_LEADS: CrmLead[] = [
 
 const SEED_COMMENTS: CrmLeadComment[] = [
   {
-    id: "c-1",
-    lead_id: "lead-101",
-    author_id: "22222222-2222-4222-8222-222222222222",
+    id: "dedcd6ac-ac06-4c33-a391-a625f477a91b",
+    lead_id: "b9a84b14-518e-47e4-a205-a9da7150b2b0",
+    author_id: "1e5c864f-af1d-4349-a4b3-f63946decdba",
     author_name: "Karan Yadav",
     author_role: "admin",
-    body: "Spoke to Mr. Malhotra. He prefers a ready-to-move 4 BHK with OC received. Assigned to Riya for Saturday site walk.",
+    body: "Spoke to Mr. Malhotra. He prefers a ready-to-move 4 BHK with OC received. Site walk locked for Saturday.",
     followup_scheduled_for: "2026-11-03T11:00:00.000Z",
     created_at: "2026-10-31T10:00:00.000Z",
   },
   {
-    id: "c-2",
-    lead_id: "lead-101",
-    author_id: "33333333-3333-4333-8333-333333333333",
-    author_name: "Riya Sharma",
-    author_role: "sales",
+    id: "35fb1986-379b-4d13-a3c7-f2c5a0c554b2",
+    lead_id: "b9a84b14-518e-47e4-a205-a9da7150b2b0",
+    author_id: "83949b21-3a79-4927-b645-101c5bbce73c",
+    author_name: "Ishan Kaushal",
+    author_role: "admin",
     body: "Shared floor plans and real sun-path video on WhatsApp. Confirmed site visit with society manager.",
     followup_scheduled_for: "2026-11-03T11:00:00.000Z",
     created_at: "2026-11-02T10:00:00.000Z",
   },
   {
-    id: "c-3",
-    lead_id: "lead-104",
-    author_id: "44444444-4444-4444-8444-444444444444",
-    author_name: "Aman Verma",
-    author_role: "sales",
+    id: "ed78a69f-e901-40e4-b19b-ab724d7e2a2b",
+    lead_id: "d91b8aea-8683-44e3-8188-48fd8464cee7",
+    author_id: "83949b21-3a79-4927-b645-101c5bbce73c",
+    author_name: "Ishan Kaushal",
+    author_role: "admin",
     body: "Landlord agreed to 45-day rent-free fit-out period and 15% escalation every 3 years. Sending draft LOI today.",
     followup_scheduled_for: "2026-11-05T11:00:00.000Z",
     created_at: "2026-11-04T08:00:00.000Z",
@@ -421,7 +416,7 @@ const SEED_COMMENTS: CrmLeadComment[] = [
 
 const SEED_PROPERTIES: CrmProperty[] = [
   {
-    id: "prop-1",
+    id: "f2dd3c93-962e-45f6-bfd8-8c77d0e628a0",
     title: "Park-Facing 4 BHK Residence",
     pillar: "homes",
     intent: "buy",
@@ -430,14 +425,14 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "3-10cr",
     specs: "2,180 sq.ft carpet · OC Received · 2 Parking",
     verification_badge: "OC & Title Verified",
-    added_by_id: "22222222-2222-4222-8222-222222222222",
+    added_by_id: "1e5c864f-af1d-4349-a4b3-f63946decdba",
     added_by_name: "Karan Yadav",
     added_by_role: "admin",
     created_at: "2026-10-12T10:00:00.000Z",
     active: true,
   },
   {
-    id: "prop-2",
+    id: "e17b891a-d855-4bf9-904e-a778e455e5c5",
     title: "Independent Freehold Kothi",
     pillar: "homes",
     intent: "buy",
@@ -446,14 +441,14 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "3-10cr",
     specs: "300 sq.yd plot · 4,100 sq.ft built · Park facing",
     verification_badge: "Freehold & Walked",
-    added_by_id: "33333333-3333-4333-8333-333333333333",
-    added_by_name: "Riya Sharma",
-    added_by_role: "sales",
+    added_by_id: "1e5c864f-af1d-4349-a4b3-f63946decdba",
+    added_by_name: "Karan Yadav",
+    added_by_role: "admin",
     created_at: "2026-10-15T14:20:00.000Z",
     active: true,
   },
   {
-    id: "prop-3",
+    id: "dd81fe4a-ff32-4a9d-beb5-1a6b776300bd",
     title: "Double-Height Corner Showroom",
     pillar: "commercial",
     intent: "invest",
@@ -462,14 +457,14 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "3-10cr",
     specs: "1,850 sq.ft · 28 ft frontage · Main road parking",
     verification_badge: "Frontage & NOC Checked",
-    added_by_id: "44444444-4444-4444-8444-444444444444",
-    added_by_name: "Aman Verma",
-    added_by_role: "sales",
+    added_by_id: "83949b21-3a79-4927-b645-101c5bbce73c",
+    added_by_name: "Ishan Kaushal",
+    added_by_role: "admin",
     created_at: "2026-10-18T11:30:00.000Z",
     active: true,
   },
   {
-    id: "prop-4",
+    id: "9ff04dd3-31c4-4c3a-a09e-c0f1813a50aa",
     title: "East-Facing Corner Villa Plot",
     pillar: "land",
     intent: "invest",
@@ -478,14 +473,14 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "1-3cr",
     specs: "265 sq.yd · 30m road approach · Approved layout",
     verification_badge: "Boundary Pillars Walked",
-    added_by_id: "55555555-5555-4555-8555-555555555555",
-    added_by_name: "Vikram Singh",
-    added_by_role: "sales",
+    added_by_id: "83949b21-3a79-4927-b645-101c5bbce73c",
+    added_by_name: "Ishan Kaushal",
+    added_by_role: "admin",
     created_at: "2026-10-21T09:45:00.000Z",
     active: true,
   },
   {
-    id: "prop-5",
+    id: "6c194e22-c4d2-41c2-a983-b28ae675d8d4",
     title: "RERA Low-Density 3 BHK Launch",
     pillar: "upcoming",
     intent: "buy",
@@ -494,14 +489,14 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "1-3cr",
     specs: "1,640 sq.ft carpet · 30:40:30 payment plan",
     verification_badge: "RERA & Escrow Audited",
-    added_by_id: "11111111-1111-4111-8111-111111111111",
-    added_by_name: "Anuj (Superadmin)",
+    added_by_id: "6605a758-8ee3-470d-ad64-14865ddae023",
+    added_by_name: "Anuj Rattan",
     added_by_role: "superadmin",
     created_at: "2026-10-25T16:10:00.000Z",
     active: true,
   },
   {
-    id: "prop-6",
+    id: "399f4b2c-e733-42cc-8990-68d14119a5c0",
     title: "Grade-A Ground Retail & Clinic Space",
     pillar: "leasing",
     intent: "lease",
@@ -510,9 +505,9 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "50l-1cr",
     specs: "1,800 sq.ft · Wet point · 9-yr registered lease",
     verification_badge: "Ready for Fit-Out",
-    added_by_id: "44444444-4444-4444-8444-444444444444",
-    added_by_name: "Aman Verma",
-    added_by_role: "sales",
+    added_by_id: "83949b21-3a79-4927-b645-101c5bbce73c",
+    added_by_name: "Ishan Kaushal",
+    added_by_role: "admin",
     created_at: "2026-10-28T12:00:00.000Z",
     active: true,
   },
@@ -542,8 +537,11 @@ function getMemoryStore(): MemoryStore {
 function getSupabaseConfig() {
   const url = (process.env.SUPABASE_URL ?? "").trim().replace(/\/$/, "");
   const key = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
-  const enabled = Boolean(url && key && url.startsWith("http") && !url.includes("your-project-ref"));
-  return { url, key, enabled };
+  const hasCreds = Boolean(url && key && url.startsWith("http") && !url.includes("your-project-ref"));
+  // Cloudflare Pages ships a static HTML shell. Never hit Supabase during `next build`
+  // prerender — that hangs the build once SUPABASE_* env vars are present.
+  const duringProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+  return { url, key, enabled: hasCreds && !duringProductionBuild };
 }
 
 async function sbFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -676,9 +674,9 @@ export async function createOrMergeLead(input: {
     if (input.message) {
       existing.notes_summary = input.message;
       mem.comments.unshift({
-        id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        id: newCrmId(),
         lead_id: existing.id,
-        author_id: "system",
+        author_id: "00000000-0000-4000-8000-000000000001",
         author_name: "Lead Intake",
         author_role: "admin",
         body: `Updated / Repeat enquiry (${input.intent.toUpperCase()}): ${input.message}`,
@@ -690,7 +688,7 @@ export async function createOrMergeLead(input: {
   }
 
   const newLead: CrmLead = {
-    id: `lead-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    id: newCrmId(),
     name: input.name,
     phone: normalizedPhone,
     email: input.email ?? "",
@@ -762,7 +760,7 @@ export async function bulkCreateLeads(params: {
 
     const mem = getMemoryStore();
     mem.comments.unshift({
-      id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: newCrmId(),
       lead_id: created.id,
       author_id: actor.id,
       author_name: actor.name,
@@ -830,7 +828,7 @@ export async function addCrmProperty(params: {
 
   const mem = getMemoryStore();
   const newProp: CrmProperty = {
-    id: `prop-${Date.now()}`,
+    id: newCrmId(),
     title,
     pillar: params.pillar,
     intent: params.intent,
@@ -899,7 +897,7 @@ export async function assignLeadWithRbac(params: {
   lead.updated_at = now;
 
   mem.comments.unshift({
-    id: `c-${Date.now()}`,
+    id: newCrmId(),
     lead_id: lead.id,
     author_id: actor.id,
     author_name: actor.name,
@@ -975,7 +973,7 @@ export async function updateLeadStageOrFollowup(params: {
     const timeLabel = params.siteVisitTime ? ` at ${params.siteVisitTime}` : " (time flexible)";
     const propLabel = params.siteVisitProperty ? ` for ${params.siteVisitProperty}` : "";
     mem.comments.unshift({
-      id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: newCrmId(),
       lead_id: lead.id,
       author_id: actor.id,
       author_name: actor.name,
@@ -990,7 +988,7 @@ export async function updateLeadStageOrFollowup(params: {
         ? ` Reason: ${params.closureReason.replace(/_/g, " ")}.`
         : "";
     mem.comments.unshift({
-      id: `c-${Date.now()}`,
+      id: newCrmId(),
       lead_id: lead.id,
       author_id: actor.id,
       author_name: actor.name,
@@ -1055,7 +1053,7 @@ export async function addLeadComment(params: {
   if (!lead) return { ok: false, error: "Lead not found." };
 
   const comment: CrmLeadComment = {
-    id: `c-${Date.now()}`,
+    id: newCrmId(),
     lead_id: lead.id,
     author_id: actor.id,
     author_name: actor.name,
@@ -1119,7 +1117,7 @@ export async function addCrmUserWithRbac(params: {
 
   const mem = getMemoryStore();
   const newUser: CrmUser = {
-    id: `user-${Date.now()}`,
+    id: newCrmId(),
     name: params.name.trim(),
     email: params.email.trim().toLowerCase(),
     phone: normalizedPhone,

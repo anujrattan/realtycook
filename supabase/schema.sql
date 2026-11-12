@@ -1,16 +1,16 @@
 -- ============================================================================
 -- RealtyCook CRM — Supabase Postgres Schema (with RLS enabled)
--- Run this in your Supabase SQL Editor when connecting your live Supabase DB.
+-- Prefer running: supabase/migrations/20261112135000_reset_and_create_crm_schema.sql
 -- Note: All queries run from the Next.js backend using SUPABASE_SERVICE_ROLE_KEY.
 -- ============================================================================
 
 create extension if not exists "pgcrypto";
 
--- 1. CRM Users (1 Superadmin, Admins, and Sales Accounts)
+-- 1. CRM Users
 create table if not exists public.crm_users (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  email text unique not null,
+  email text not null unique,
   phone text not null,
   role text not null check (role in ('superadmin', 'admin', 'sales')),
   designation text not null default 'Sales Advisor',
@@ -20,16 +20,16 @@ create table if not exists public.crm_users (
 
 alter table public.crm_users enable row level security;
 
--- 2. Leads Table
+-- 2. Leads
 create table if not exists public.crm_leads (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   phone text not null,
-  email text default '',
+  email text not null default '',
+  city text not null default '',
   intent text not null check (intent in ('buy', 'sell', 'invest', 'lease')),
   pillar text not null default 'homes' check (pillar in ('homes', 'commercial', 'upcoming', 'land', 'leasing')),
   budget text not null default 'unsure',
-  city text not null default '',
   stage text not null default 'new_enquiry' check (
     stage in (
       'new_enquiry',
@@ -68,9 +68,14 @@ create table if not exists public.crm_leads (
   updated_at timestamptz not null default now()
 );
 
+create index if not exists idx_crm_leads_stage on public.crm_leads(stage);
+create index if not exists idx_crm_leads_assigned_to on public.crm_leads(assigned_to);
+create index if not exists idx_crm_leads_phone on public.crm_leads(phone);
+create index if not exists idx_crm_leads_updated_at on public.crm_leads(updated_at desc);
+
 alter table public.crm_leads enable row level security;
 
--- 3. Lead Conversation Comments & Activity Log
+-- 3. Lead comments / activity
 create table if not exists public.crm_lead_comments (
   id uuid primary key default gen_random_uuid(),
   lead_id uuid not null references public.crm_leads(id) on delete cascade,
@@ -82,9 +87,12 @@ create table if not exists public.crm_lead_comments (
   created_at timestamptz not null default now()
 );
 
+create index if not exists idx_crm_lead_comments_lead_id on public.crm_lead_comments(lead_id);
+create index if not exists idx_crm_lead_comments_created_at on public.crm_lead_comments(created_at desc);
+
 alter table public.crm_lead_comments enable row level security;
 
--- 4. Verified Property Inventory Bank (tracks who added each property)
+-- 4. Verified inventory
 create table if not exists public.crm_properties (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -102,14 +110,12 @@ create table if not exists public.crm_properties (
   created_at timestamptz not null default now()
 );
 
+create index if not exists idx_crm_properties_active on public.crm_properties(active);
+create index if not exists idx_crm_properties_created_at on public.crm_properties(created_at desc);
+
 alter table public.crm_properties enable row level security;
 
--- Seed default Superadmin, Admin (Karan Yadav), and initial Sales accounts
-insert into public.crm_users (name, email, phone, role, designation)
-values
-  ('Anuj (Superadmin)', 'founder@realtycook.com', '919056050813', 'superadmin', 'Founder & Superadmin'),
-  ('Karan Yadav', 'karan@realtycook.com', '919056050813', 'admin', 'VP - Sales'),
-  ('Riya Sharma', 'riya@realtycook.com', '919876543210', 'sales', 'Sales Advisor — Homes & Kothis'),
-  ('Aman Verma', 'aman@realtycook.com', '919876543211', 'sales', 'Sales Advisor — Commercial & Leasing'),
-  ('Vikram Singh', 'vikram@realtycook.com', '919876543212', 'sales', 'Sales Advisor — Plots & New Launches')
-on conflict (email) do nothing;
+-- Seed CRM users (+ Auth) via the reset migration only:
+--   supabase/migrations/20261112135000_reset_and_create_crm_schema.sql
+-- That file creates matching auth.users / auth.identities rows with the same UUIDs.
+-- Temp password: RealtyCook#ChangeMe1

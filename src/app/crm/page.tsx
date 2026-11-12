@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   description: "Internal CRM for RealtyCook Superadmin, Admin, and Sales advisors.",
 };
 
+/** CRM is allowed to block; live Supabase is skipped during `next build` prerender. */
+export const instant = false;
+
 export default async function CrmPage() {
   const initialSnapshot = await getCrmSnapshot();
   return <CrmDashboard initialSnapshot={initialSnapshot} />;

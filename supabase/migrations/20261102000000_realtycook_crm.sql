@@ -129,12 +129,11 @@ create policy "Backend service_role full access on crm_properties"
   using (true)
   with check (true);
 
--- Seed initial Superadmin, Admin, and Sales accounts
+-- Seed Super Admins and SVP Sales accounts
 insert into public.crm_users (id, name, email, phone, role, designation)
 values
-  ('11111111-1111-4111-8111-111111111111', 'Anuj (Founder)', 'founder@realtycook.com', '919056050813', 'superadmin', 'Founder & Superadmin'),
-  ('22222222-2222-4222-8222-222222222222', 'Karan Yadav', 'karan@realtycook.com', '919056050813', 'admin', 'VP - Sales'),
-  ('33333333-3333-4333-8333-333333333333', 'Riya Sharma', 'riya@realtycook.com', '919876543210', 'sales', 'Senior Sales Advisor — Homes & Kothis'),
-  ('44444444-4444-4444-8444-444444444444', 'Aman Verma', 'aman@realtycook.com', '919876543211', 'sales', 'Sales Advisor — Commercial & Leasing'),
-  ('55555555-5555-4555-8555-555555555555', 'Vikram Singh', 'vikram@realtycook.com', '919876543212', 'sales', 'Sales Advisor — Plots & New Launches')
+  ('6605a758-8ee3-470d-ad64-14865ddae023', 'Anuj Rattan', 'rattan.anuj@gmail.com', '918558887123', 'superadmin', 'Super Admin'),
+  ('4eb4d5ac-6d70-4774-935f-006ee270b58d', 'Sahil Vaid', 'realtycookadmin@gmail.com', '917986000813', 'superadmin', 'Super Admin'),
+  ('1e5c864f-af1d-4349-a4b3-f63946decdba', 'Karan Yadav', 'karanrealtycook@gmail.com', '919056050813', 'admin', 'SVP Sales'),
+  ('83949b21-3a79-4927-b645-101c5bbce73c', 'Ishan Kaushal', 'ishanrealtycook@gmail.com', '919056060813', 'admin', 'SVP Sales')
 on conflict (email) do nothing;

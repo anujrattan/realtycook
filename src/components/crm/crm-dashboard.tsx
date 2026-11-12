@@ -31,8 +31,9 @@ import {
 import { CrmSidebar } from "@/components/crm/crm-sidebar";
 import { CrmTeamView } from "@/components/crm/crm-team-view";
 import { CrmTopbar } from "@/components/crm/crm-topbar";
-import type {
-  CrmLead,
+import {
+  newCrmId,
+  type CrmLead,
   CrmProperty,
   CrmStateSnapshot,
   CrmUser,
@@ -227,7 +228,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
     setNowMs(Date.now());
     const tick = window.setInterval(() => setNowMs(Date.now()), 30_000);
     try {
-      const saved = window.localStorage.getItem("rc_crm_snapshot_v2");
+      const saved = window.localStorage.getItem("rc_crm_snapshot_v3");
       if (saved) {
         const parsed = JSON.parse(saved) as CrmStateSnapshot;
         if (parsed?.users?.length && parsed?.leads?.length) {
@@ -240,6 +241,11 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
             })),
           });
         }
+      }
+      try {
+        window.localStorage.removeItem("rc_crm_snapshot_v2");
+      } catch {
+        // ignore
       }
     } catch {
       // ignore
@@ -307,7 +313,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
   function saveLocalSnapshot(next: CrmStateSnapshot) {
     setSnapshot(next);
     try {
-      window.localStorage.setItem("rc_crm_snapshot_v2", JSON.stringify(next));
+      window.localStorage.setItem("rc_crm_snapshot_v3", JSON.stringify(next));
     } catch {
       // ignore
     }
@@ -325,7 +331,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
         return false;
       }
       const newLead: CrmLead = {
-        id: `lead-${Date.now()}`,
+        id: newCrmId(),
         name,
         phone: phone.length === 10 ? `91${phone}` : phone,
         email: String(body.email ?? "").trim(),
@@ -357,7 +363,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
         const phone = String(row.phone ?? "").replace(/\D/g, "");
         if (name.length < 2 || phone.length < 10) continue;
         created.push({
-          id: `lead-${Date.now()}-${created.length}`,
+          id: newCrmId(),
           name,
           phone: phone.length === 10 ? `91${phone}` : phone,
           email: String(row.email ?? "").trim(),
@@ -396,7 +402,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
         return false;
       }
       const prop: CrmProperty = {
-        id: `prop-${Date.now()}`,
+        id: newCrmId(),
         title,
         pillar: (body.pillar as ServicePillar) ?? "homes",
         intent: (body.intent as LeadIntent) ?? "buy",
@@ -483,7 +489,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
           body.siteVisitDate
             ? [
                 {
-                  id: `c-${Date.now()}`,
+                  id: newCrmId(),
                   lead_id: leadId,
                   author_id: actor.id,
                   author_name: actor.name,
@@ -499,7 +505,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
             : stage
               ? [
                   {
-                    id: `c-${Date.now()}`,
+                    id: newCrmId(),
                     lead_id: leadId,
                     author_id: actor.id,
                     author_name: actor.name,
@@ -526,7 +532,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
         ...snapshot,
         comments: [
           {
-            id: `c-${Date.now()}`,
+            id: newCrmId(),
             lead_id: leadId,
             author_id: actor.id,
             author_name: actor.name,
@@ -566,7 +572,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
         users: [
           ...snapshot.users,
           {
-            id: `user-${Date.now()}`,
+            id: newCrmId(),
             name: String(body.name ?? "").trim(),
             email: String(body.email ?? "").trim().toLowerCase(),
             phone: String(body.phone ?? "").replace(/\D/g, ""),
