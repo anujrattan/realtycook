@@ -226,30 +226,62 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
   useEffect(() => {
     setNowMs(Date.now());
     const tick = window.setInterval(() => setNowMs(Date.now()), 30_000);
-    try {
-      const saved = window.localStorage.getItem("rc_crm_snapshot_v3");
-      if (saved) {
-        const parsed = JSON.parse(saved) as CrmStateSnapshot;
-        if (parsed?.users?.length && parsed?.leads?.length) {
-          setSnapshot({
-            ...parsed,
-            leads: parsed.leads.map((lead) => ({
-              ...lead,
-              stage: normalizeLeadStage(lead.stage),
-              closure_reason: normalizeStageReason(lead.closure_reason, lead.stage),
-            })),
-          });
-        }
-      }
+    let cancelled = false;
+
+    async function hydrateFromServer() {
       try {
-        window.localStorage.removeItem("rc_crm_snapshot_v2");
+        const res = await fetch("/api/crm", { cache: "no-store" });
+        if (!res.ok) throw new Error(`CRM snapshot HTTP ${res.status}`);
+        const data = (await res.json()) as CrmStateSnapshot;
+        if (cancelled || !data?.users?.length) return;
+        const next: CrmStateSnapshot = {
+          ...data,
+          leads: (data.leads ?? []).map((lead) => ({
+            ...lead,
+            stage: normalizeLeadStage(lead.stage),
+            closure_reason: normalizeStageReason(lead.closure_reason, lead.stage),
+          })),
+          properties: data.properties ?? [],
+        };
+        setSnapshot(next);
+        try {
+          window.localStorage.setItem("rc_crm_snapshot_v4", JSON.stringify(next));
+          window.localStorage.removeItem("rc_crm_snapshot_v3");
+          window.localStorage.removeItem("rc_crm_snapshot_v2");
+        } catch {
+          // ignore quota / private mode
+        }
+        return;
+      } catch {
+        // Fall back to cached snapshot only when the API is unreachable.
+      }
+
+      try {
+        const saved =
+          window.localStorage.getItem("rc_crm_snapshot_v4") ??
+          window.localStorage.getItem("rc_crm_snapshot_v3");
+        if (!saved) return;
+        const parsed = JSON.parse(saved) as CrmStateSnapshot;
+        if (cancelled || !parsed?.users?.length) return;
+        setSnapshot({
+          ...parsed,
+          leads: (parsed.leads ?? []).map((lead) => ({
+            ...lead,
+            stage: normalizeLeadStage(lead.stage),
+            closure_reason: normalizeStageReason(lead.closure_reason, lead.stage),
+          })),
+          properties: parsed.properties ?? [],
+        });
       } catch {
         // ignore
       }
-    } catch {
-      // ignore
     }
-    return () => window.clearInterval(tick);
+
+    void hydrateFromServer();
+    return () => {
+      cancelled = true;
+      window.clearInterval(tick);
+    };
   }, []);
 
   useEffect(() => {
@@ -312,7 +344,8 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
   function saveLocalSnapshot(next: CrmStateSnapshot) {
     setSnapshot(next);
     try {
-      window.localStorage.setItem("rc_crm_snapshot_v3", JSON.stringify(next));
+      window.localStorage.setItem("rc_crm_snapshot_v4", JSON.stringify(next));
+      window.localStorage.removeItem("rc_crm_snapshot_v3");
     } catch {
       // ignore
     }
