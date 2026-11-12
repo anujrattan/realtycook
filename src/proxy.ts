@@ -57,8 +57,22 @@ export async function proxy(request: NextRequest) {
   }
 
   if (gate.mustResetPassword && pathname !== "/reset-password") {
-    const redirect = NextResponse.redirect(new URL("/reset-password", request.url));
-    return copyCookies(gate.response, redirect);
+    // Keep first-login / recovery password APIs reachable while the HTML gate is active.
+    // Redirecting POSTs to /reset-password yields 405 (page is GET-only).
+    const allowedWhileMustReset =
+      pathname.startsWith("/api/auth/reset-password") ||
+      pathname.startsWith("/api/auth/complete-password-reset");
+    if (!allowedWhileMustReset) {
+      if (pathname.startsWith("/api/")) {
+        const locked = NextResponse.json(
+          { error: "Password reset required before continuing." },
+          { status: 403 },
+        );
+        return copyCookies(gate.response, locked);
+      }
+      const redirect = NextResponse.redirect(new URL("/reset-password", request.url));
+      return copyCookies(gate.response, redirect);
+    }
   }
 
   if (!gate.mustResetPassword && pathname === "/reset-password") {
