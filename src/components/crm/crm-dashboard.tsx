@@ -12,6 +12,7 @@ import {
 import { CrmDashboardPanel } from "@/components/crm/crm-dashboard-panel";
 import { CrmFollowupToast } from "@/components/crm/crm-followup-toast";
 import { CrmFollowupsView } from "@/components/crm/crm-followups-view";
+import { CrmInventoryRecordModal } from "@/components/crm/crm-inventory-record-modal";
 import { CrmInventoryView } from "@/components/crm/crm-inventory-view";
 import { CrmLeadRecordModal } from "@/components/crm/crm-lead-record-modal";
 import { CrmPipelineBoard } from "@/components/crm/crm-pipeline-board";
@@ -58,6 +59,7 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
   const [assigneeFilter, setAssigneeFilter] = useState<"all" | "mine" | "unassigned">("all");
 
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState("");
   const [followupInput, setFollowupInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -205,6 +207,11 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
     [snapshot.leads, selectedLeadId],
   );
 
+  const selectedProperty: CrmProperty | null = useMemo(
+    () => snapshot.properties.find((p) => p.id === selectedPropertyId) ?? null,
+    [snapshot.properties, selectedPropertyId],
+  );
+
   const selectedLeadComments = useMemo(
     () => snapshot.comments.filter((c) => c.lead_id === selectedLeadId),
     [snapshot.comments, selectedLeadId],
@@ -292,13 +299,15 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
   }, [selectedLead?.id, selectedLead?.site_visit_date, selectedLead?.site_visit_time, selectedLead?.site_visit_property]);
 
   useEffect(() => {
-    if (!selectedLeadId) return;
+    if (!selectedLeadId && !selectedPropertyId) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedLeadId(null);
+      if (e.key !== "Escape") return;
+      setSelectedLeadId(null);
+      setSelectedPropertyId(null);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedLeadId]);
+  }, [selectedLeadId, selectedPropertyId]);
 
   function markFollowupHandled(lead: CrmLead | null | undefined) {
     if (!lead?.next_followup_at) return;
@@ -983,6 +992,8 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
           {activeTab === "inventory" && (
             <CrmInventoryView
               properties={snapshot.properties}
+              selectedPropertyId={selectedPropertyId}
+              onSelectProperty={setSelectedPropertyId}
               onAddProperty={() => setShowAddProperty(true)}
             />
           )}
@@ -1015,6 +1026,13 @@ export function CrmDashboard({ initialSnapshot }: { initialSnapshot: CrmStateSna
           )}
         </main>
       </div>
+
+      {selectedProperty && (
+        <CrmInventoryRecordModal
+          property={selectedProperty}
+          onClose={() => setSelectedPropertyId(null)}
+        />
+      )}
 
       {selectedLead && (
         <CrmLeadRecordModal
