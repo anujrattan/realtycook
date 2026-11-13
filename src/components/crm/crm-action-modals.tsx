@@ -3,6 +3,7 @@
 import { FileSpreadsheet, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { REASONS_BY_STAGE, STAGES } from "@/components/crm/crm-shared";
+import { CrmPendingImagePicker } from "@/components/crm/crm-property-images";
 import type { CrmUser, LeadIntent, LeadStage, ServicePillar, StageReason } from "@/lib/crm-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -231,6 +232,8 @@ export type CrmAddPropertyModalProps = {
   actor: CrmUser;
   form: PropertyFormState;
   setForm: React.Dispatch<React.SetStateAction<PropertyFormState>>;
+  pendingImages: File[];
+  setPendingImages: React.Dispatch<React.SetStateAction<File[]>>;
   onSubmit: (e: React.FormEvent) => void;
 };
 
@@ -241,13 +244,15 @@ export function CrmAddPropertyModal({
   actor,
   form,
   setForm,
+  pendingImages,
+  setPendingImages,
   onSubmit,
 }: CrmAddPropertyModalProps) {
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4 backdrop-blur-xs">
-      <div className="w-full max-w-lg rounded-3xl border border-border bg-white p-6 shadow-lift sm:p-8">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-border bg-white p-6 shadow-lift sm:p-8">
         <div className="flex items-center justify-between border-b border-border pb-4">
           <h2 className="text-xl font-bold text-ink">Add Verified Property</h2>
           <button type="button" onClick={onClose} className="text-xs font-semibold text-ink/50">
@@ -351,6 +356,11 @@ export function CrmAddPropertyModal({
               placeholder="OC & Title Verified"
             />
           </div>
+          <CrmPendingImagePicker
+            files={pendingImages}
+            onChange={setPendingImages}
+            disabled={busy}
+          />
           <p className="text-[11px] text-ink/55">
             Will be attributed to <strong>{actor.name}</strong> ({actor.role}).
           </p>
@@ -410,7 +420,7 @@ export function CrmStageReasonModal({
   const subtitle =
     targetStage === "closed"
       ? `Choose why ${leadName} is leaving the active pipeline.`
-      : `How did the call with ${leadName} go? Discussion is required only for Connected outcomes.`;
+      : `How did the call with ${leadName} go? Discussion is required only for Connected outcomes. Retry outcomes create a Follow-up task for tomorrow.`;
   const canSave = Boolean(reason) && (!discussionRequired || discussion.trim().length > 0);
 
   return (

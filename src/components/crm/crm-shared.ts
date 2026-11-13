@@ -5,7 +5,15 @@ import type {
   ServicePillar,
   StageReason,
 } from "@/lib/crm-store";
-export { normalizeLeadStage, normalizeStageReason } from "@/lib/crm-store";
+export {
+  CRM_TASK_TYPE_OPTIONS,
+  defaultTaskTitle,
+  normalizeLeadStage,
+  normalizeStageReason,
+  normalizeTaskType,
+  taskTypeLabel,
+  type CrmTaskType,
+} from "@/lib/crm-store";
 
 export const STAGES: { id: LeadStage; num: string; label: string; color: string }[] = [
   { id: "new_enquiry", num: "01", label: "New", color: "bg-brand-red text-white" },
@@ -22,8 +30,8 @@ export type StageReasonOption = {
   hint: string;
   /** Actual pipeline stage saved after this reason is chosen */
   resultsIn: LeadStage;
-  /** Busy / no-answer / callback style outcomes create a retry follow-up */
-  schedulesFollowup?: boolean;
+  /** Busy / no-answer / callback style outcomes create a Follow-up task */
+  createsFollowUpTask?: boolean;
   group: string;
 };
 
@@ -46,7 +54,7 @@ export const REASONS_BY_STAGE: Partial<Record<LeadStage, StageReasonOption[]>> =
       label: "Callback requested",
       hint: "They asked to talk later. Stay Contacted and schedule a follow-up.",
       resultsIn: "contacted",
-      schedulesFollowup: true,
+      createsFollowUpTask: true,
       group: "Connected",
     },
     {
@@ -54,7 +62,7 @@ export const REASONS_BY_STAGE: Partial<Record<LeadStage, StageReasonOption[]>> =
       label: "No answer",
       hint: "Did not connect. Lead stays New with a follow-up retry.",
       resultsIn: "new_enquiry",
-      schedulesFollowup: true,
+      createsFollowUpTask: true,
       group: "Retry later",
     },
     {
@@ -62,7 +70,7 @@ export const REASONS_BY_STAGE: Partial<Record<LeadStage, StageReasonOption[]>> =
       label: "Switched off / not reachable",
       hint: "Phone unavailable. Lead stays New with a follow-up retry.",
       resultsIn: "new_enquiry",
-      schedulesFollowup: true,
+      createsFollowUpTask: true,
       group: "Retry later",
     },
     {
@@ -70,7 +78,7 @@ export const REASONS_BY_STAGE: Partial<Record<LeadStage, StageReasonOption[]>> =
       label: "Busy / rejected the call",
       hint: "Yes — this is a follow-up, not a close. Lead stays New.",
       resultsIn: "new_enquiry",
-      schedulesFollowup: true,
+      createsFollowUpTask: true,
       group: "Retry later",
     },
   ],
@@ -172,47 +180,16 @@ export const PILLAR_LABELS: Record<ServicePillar, string> = {
   leasing: "Leasing",
 };
 
-export type FollowupStatus = "today" | "upcoming" | "missed";
-export type FollowupBucket = "all" | FollowupStatus;
 /** Tasks screen filters. Closed is opt-in and excluded from All. */
 export type TaskBucket = "all" | "today" | "upcoming" | "missed" | "closed";
 export type TaskDueStatus = "today" | "upcoming" | "missed" | "closed";
-export type CrmNavId = "pipeline" | "followups" | "inventory" | "team" | "dashboard";
-
-export function followupKey(lead: CrmLead) {
-  return `${lead.id}:${lead.next_followup_at ?? ""}`;
-}
+export type CrmNavId = "pipeline" | "tasks" | "inventory" | "team" | "dashboard";
 
 export function taskKey(task: { id: string; due_at: string; status: string }) {
   return `${task.id}:${task.due_at}:${task.status}`;
 }
 
-export function followupStatusStyles(status: FollowupStatus) {
-  if (status === "missed") {
-    return {
-      row: "bg-brand-red-soft/45",
-      badge: "bg-brand-red text-white",
-      text: "text-brand-red",
-      label: "Missed",
-    };
-  }
-  if (status === "today") {
-    return {
-      row: "bg-white",
-      badge: "bg-amber-500 text-ink",
-      text: "text-amber-900",
-      label: "Due today",
-    };
-  }
-  return {
-    row: "bg-white",
-    badge: "bg-cream text-ink/70",
-    text: "text-ink/70",
-    label: "Upcoming",
-  };
-}
-
-/** Color scheme: red=missed, yellow=due today, white=today row, green=closed. */
+/** Color scheme: red=missed, yellow=due today, white=open, green=closed. */
 export function taskStatusStyles(status: TaskDueStatus) {
   if (status === "closed") {
     return {
@@ -306,18 +283,9 @@ function endOfLocalDay(ms: number) {
   return d.getTime();
 }
 
-export function isFollowupOverdue(iso: string | null, nowMs: number | null) {
+export function isDueOverdue(iso: string | null, nowMs: number | null) {
   if (!iso || nowMs === null) return false;
   return new Date(iso).getTime() < nowMs;
-}
-
-export function classifyFollowup(iso: string | null, nowMs: number | null): FollowupStatus | null {
-  if (!iso || nowMs === null) return null;
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return null;
-  if (t < nowMs) return "missed";
-  if (t <= endOfLocalDay(nowMs)) return "today";
-  return "upcoming";
 }
 
 export function normalizeIntent(v: unknown): LeadIntent {

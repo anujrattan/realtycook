@@ -48,6 +48,10 @@ export function CrmTopbar({
   }, [menuOpen]);
 
   const displayName = userDisplayName(actor);
+  const showSystemStatus =
+    actor.email?.toLowerCase() === "rattan.anuj@gmail.com" ||
+    actor.first_name?.toLowerCase() === "anuj" ||
+    actor.name.toLowerCase().startsWith("anuj ");
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-white/95 backdrop-blur-xl">
@@ -55,14 +59,16 @@ export function CrmTopbar({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-lg font-bold text-ink">{title}</h1>
-            <span
-              className={cn(
-                "rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase",
-                storageMode === "supabase" ? "bg-emerald-500/15 text-emerald-800" : "bg-gold-soft text-ink",
-              )}
-            >
-              {storageMode === "supabase" ? "Supabase Connected" : "Local Store (.env Ready)"}
-            </span>
+            {showSystemStatus ? (
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase",
+                  storageMode === "supabase" ? "bg-emerald-500/15 text-emerald-800" : "bg-gold-soft text-ink",
+                )}
+              >
+                {storageMode === "supabase" ? "Supabase Connected" : "Local Store (.env Ready)"}
+              </span>
+            ) : null}
           </div>
           <p className="mt-0.5 text-xs text-ink/55">{subtitle}</p>
         </div>

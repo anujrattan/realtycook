@@ -12,6 +12,7 @@ import {
   uniqueInventoryValues,
   type InventoryFilters,
 } from "@/lib/crm-inventory";
+import { PropertyCoverThumb } from "@/components/crm/crm-property-images";
 import { Button } from "@/components/ui/button";
 import { BUDGET_LABELS, PILLAR_LABELS } from "@/components/crm/crm-shared";
 import { cn } from "@/lib/utils";
@@ -240,10 +241,12 @@ export function CrmInventoryView({
                 type="button"
                 onClick={() => onSelectProperty(prop.id)}
                 className={cn(
-                  "flex flex-col rounded-3xl border bg-white p-5 text-left shadow-soft transition hover:border-brand-red/25",
+                  "flex flex-col overflow-hidden rounded-3xl border bg-white text-left shadow-soft transition hover:border-brand-red/25",
                   selected ? "border-brand-red ring-2 ring-brand-red/20" : "border-border",
                 )}
               >
+                <PropertyCoverThumb property={prop} size="lg" className="rounded-none" />
+                <div className="flex flex-col p-5">
                 <div className="flex items-start justify-between gap-2">
                   <span className="rounded-full bg-brand-red-soft px-3 py-1 text-xs font-semibold text-brand-red-deep">
                     {PILLAR_LABELS[prop.pillar]}
@@ -266,6 +269,7 @@ export function CrmInventoryView({
                   </div>
                   <span className="text-[11px] font-semibold text-brand-red">Open</span>
                 </div>
+                </div>
               </button>
             );
           })}
@@ -276,6 +280,7 @@ export function CrmInventoryView({
             <table className="min-w-full text-left text-sm">
               <thead className="border-b border-border bg-cream/50 text-[10px] font-semibold tracking-[0.12em] text-ink/45 uppercase">
                 <tr>
+                  <th className="px-4 py-3">Photo</th>
                   <th className="px-4 py-3">Project</th>
                   <th className="px-4 py-3">Location</th>
                   <th className="px-4 py-3">Config</th>
@@ -298,6 +303,9 @@ export function CrmInventoryView({
                         selected && "bg-brand-red-soft/30",
                       )}
                     >
+                      <td className="px-4 py-3">
+                        <PropertyCoverThumb property={prop} size="sm" className="rounded-lg" />
+                      </td>
                       <td className="px-4 py-3">
                         <p className="font-semibold text-ink">{propertyProjectName(prop)}</p>
                         <p className="text-xs text-ink/50">{inv?.developer_name || propertySummary(prop)}</p>

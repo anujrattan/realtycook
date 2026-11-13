@@ -19,7 +19,7 @@ import {
   updateCrmProperty,
   updateCrmTask,
   updateCrmUserProfile,
-  updateLeadStageOrFollowup,
+  updateLeadStage,
 } from "@/lib/crm-store";
 
 export async function GET() {
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       message: String(payload.message ?? "").trim(),
       source: String(payload.source ?? "Direct Entry"),
       assigned_to: payload.assignedTo ? String(payload.assignedTo) : null,
-      next_followup_at: payload.nextFollowupAt ? String(payload.nextFollowupAt) : null,
+      next_task_due_at: payload.nextTaskDueAt ? String(payload.nextTaskDueAt) : null,
     });
     const snapshot = await getCrmSnapshot();
     return NextResponse.json({ ok: true, lead, snapshot });
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
         budget?: string;
         notes_summary?: string;
         assigned_to?: string | null;
-        next_followup_at?: string | null;
+        next_task_due_at?: string | null;
       }>,
     });
     if (!result.ok) {
@@ -200,7 +200,7 @@ export async function POST(request: Request) {
   }
 
   if (action === "update_stage") {
-    const result = await updateLeadStageOrFollowup({
+    const result = await updateLeadStage({
       actorId,
       leadId: String(payload.leadId ?? ""),
       stage: payload.stage as LeadStage | undefined,
@@ -208,9 +208,9 @@ export async function POST(request: Request) {
         payload.closureReason !== undefined
           ? (payload.closureReason as StageReason | null)
           : undefined,
-      nextFollowupAt:
-        payload.nextFollowupAt !== undefined
-          ? (payload.nextFollowupAt as string | null)
+      nextTaskDueAt:
+        payload.nextTaskDueAt !== undefined
+          ? (payload.nextTaskDueAt as string | null)
           : undefined,
       siteVisitDate:
         payload.siteVisitDate !== undefined
@@ -260,7 +260,7 @@ export async function POST(request: Request) {
       actorId,
       leadId: String(payload.leadId ?? ""),
       body: String(payload.body ?? ""),
-      nextFollowupAt: payload.nextFollowupAt ? String(payload.nextFollowupAt) : null,
+      nextTaskDueAt: payload.nextTaskDueAt ? String(payload.nextTaskDueAt) : null,
       newStage: payload.newStage ? (payload.newStage as LeadStage) : undefined,
     });
     if (!result.ok) {
@@ -327,6 +327,7 @@ export async function POST(request: Request) {
       title: String(payload.title ?? ""),
       description: payload.description !== undefined ? String(payload.description) : "",
       dueAt: String(payload.dueAt ?? ""),
+      taskType: payload.taskType !== undefined ? String(payload.taskType) : "todo",
       assignedTo:
         payload.assignedTo === undefined
           ? undefined
@@ -350,6 +351,7 @@ export async function POST(request: Request) {
         description: payload.description !== undefined ? String(payload.description) : undefined,
         dueAt: payload.dueAt !== undefined ? String(payload.dueAt) : undefined,
         status: payload.status !== undefined ? (payload.status as CrmTaskStatus) : undefined,
+        taskType: payload.taskType !== undefined ? String(payload.taskType) : undefined,
         assignedTo:
           payload.assignedTo === undefined
             ? undefined

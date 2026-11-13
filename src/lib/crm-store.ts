@@ -193,7 +193,7 @@ export interface CrmLeadComment {
   author_name: string;
   author_role: UserRole;
   body: string;
-  followup_scheduled_for: string | null;
+  task_scheduled_for: string | null;
   created_at: string;
 }
 
@@ -209,7 +209,7 @@ export interface CrmLead {
   stage: LeadStage;
   source: string;
   assigned_to: string | null;
-  next_followup_at: string | null;
+  next_task_due_at: string | null;
   site_visit_date?: string | null;
   site_visit_time?: string | null;
   site_visit_property?: string | null;
@@ -229,6 +229,8 @@ export interface CrmProperty {
   budget_bracket: string;
   specs: string;
   verification_badge: string;
+  image_urls?: string[] | null;
+  cover_image_url?: string | null;
   added_by_id: string;
   added_by_name: string;
   added_by_role: UserRole;
@@ -236,13 +238,77 @@ export interface CrmProperty {
   active: boolean;
 }
 
+export const INVENTORY_IMAGE_BUCKET = "inventory-images";
+export const INVENTORY_MAX_IMAGES = 8;
+export const INVENTORY_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export const INVENTORY_IMAGE_MIME = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+
+export function propertyImageUrls(prop: Pick<CrmProperty, "image_urls" | "cover_image_url">): string[] {
+  const urls = Array.isArray(prop.image_urls) ? prop.image_urls.filter((u) => Boolean(u && String(u).trim())) : [];
+  if (urls.length > 0) return urls;
+  if (prop.cover_image_url?.trim()) return [prop.cover_image_url.trim()];
+  return [];
+}
+
+export function propertyCoverUrl(prop: Pick<CrmProperty, "image_urls" | "cover_image_url">): string | null {
+  const cover = prop.cover_image_url?.trim();
+  if (cover) return cover;
+  return propertyImageUrls(prop)[0] ?? null;
+}
+
 export type CrmTaskStatus = "open" | "closed";
+
+/** HubSpot-style task types — follow-ups and to-dos live in one queue. */
+export type CrmTaskType = "follow_up" | "call" | "email" | "todo" | "meeting";
+
+export const CRM_TASK_TYPE_OPTIONS: {
+  id: CrmTaskType;
+  label: string;
+  hint: string;
+}[] = [
+  { id: "follow_up", label: "Follow-up", hint: "Customer asked for a callback" },
+  { id: "call", label: "Call", hint: "Outbound call to make" },
+  { id: "email", label: "Email", hint: "Send email or WhatsApp update" },
+  { id: "todo", label: "To-do", hint: "Research or prepare information" },
+  { id: "meeting", label: "Meeting", hint: "Meeting or site visit prep" },
+];
+
+export function normalizeTaskType(value: unknown): CrmTaskType {
+  const v = String(value ?? "").trim().toLowerCase();
+  if (v === "follow_up" || v === "follow-up" || v === "followup") return "follow_up";
+  if (v === "call") return "call";
+  if (v === "email") return "email";
+  if (v === "meeting") return "meeting";
+  return "todo";
+}
+
+export function taskTypeLabel(type: CrmTaskType | string | null | undefined) {
+  const normalized = normalizeTaskType(type);
+  return CRM_TASK_TYPE_OPTIONS.find((o) => o.id === normalized)?.label ?? "To-do";
+}
+
+export function defaultTaskTitle(type: CrmTaskType, leadName: string) {
+  const name = leadName.trim() || "lead";
+  switch (type) {
+    case "follow_up":
+      return `Follow up with ${name}`;
+    case "call":
+      return `Call ${name}`;
+    case "email":
+      return `Email ${name}`;
+    case "meeting":
+      return `Meeting with ${name}`;
+    default:
+      return "";
+  }
+}
 
 export interface CrmTask {
   id: string;
   lead_id: string;
   title: string;
   description: string;
+  task_type?: CrmTaskType;
   status: CrmTaskStatus;
   due_at: string;
   assigned_to: string | null;
@@ -352,7 +418,7 @@ const SEED_LEADS: CrmLead[] = [
     stage: "site_visit_scheduled",
     source: "Website Hero",
     assigned_to: "1e5c864f-af1d-4349-a4b3-f63946decdba",
-    next_followup_at: "2026-11-03T11:00:00.000Z",
+    next_task_due_at: "2026-11-03T11:00:00.000Z",
     site_visit_date: "2026-11-07",
     site_visit_time: "11:00",
     site_visit_property: "Park-Facing 4 BHK Residence (Sector 65, Gurugram)",
@@ -373,7 +439,7 @@ const SEED_LEADS: CrmLead[] = [
     stage: "meeting",
     source: "Website Contact",
     assigned_to: "83949b21-3a79-4927-b645-101c5bbce73c",
-    next_followup_at: "2026-11-04T10:30:00.000Z",
+    next_task_due_at: "2026-11-04T10:30:00.000Z",
     closure_reason: null,
     notes_summary: "Wants a main-road double-height showroom with clear parking. Shared 2 verified options on WhatsApp.",
     created_at: "2026-10-31T10:00:00.000Z",
@@ -391,7 +457,7 @@ const SEED_LEADS: CrmLead[] = [
     stage: "contacted",
     source: "WhatsApp Bubble",
     assigned_to: "83949b21-3a79-4927-b645-101c5bbce73c",
-    next_followup_at: "2026-11-04T12:30:00.000Z",
+    next_task_due_at: "2026-11-04T12:30:00.000Z",
     closure_reason: null,
     notes_summary: "Looking for 250–300 sq.yd approved plot on 30m sector road for 5-year hold.",
     created_at: "2026-11-01T10:00:00.000Z",
@@ -409,7 +475,7 @@ const SEED_LEADS: CrmLead[] = [
     stage: "negotiation",
     source: "Direct Referral",
     assigned_to: "83949b21-3a79-4927-b645-101c5bbce73c",
-    next_followup_at: "2026-11-05T11:00:00.000Z",
+    next_task_due_at: "2026-11-05T11:00:00.000Z",
     closure_reason: null,
     notes_summary: "Need 1,800 sq.ft ground-floor space on 9-year lease with 3-year lock-in. Finalising LOI terms.",
     created_at: "2026-10-29T10:00:00.000Z",
@@ -427,7 +493,7 @@ const SEED_LEADS: CrmLead[] = [
     stage: "new_enquiry",
     source: "Website Contact",
     assigned_to: "1e5c864f-af1d-4349-a4b3-f63946decdba",
-    next_followup_at: "2026-11-03T15:00:00.000Z",
+    next_task_due_at: "2026-11-03T15:00:00.000Z",
     closure_reason: null,
     notes_summary: "Enquired about RERA-verified 3 BHK new launch with construction-linked payment plan.",
     created_at: "2026-11-02T14:00:00.000Z",
@@ -445,7 +511,7 @@ const SEED_LEADS: CrmLead[] = [
     stage: "negotiation",
     source: "Direct Referral",
     assigned_to: "1e5c864f-af1d-4349-a4b3-f63946decdba",
-    next_followup_at: "2026-11-06T10:00:00.000Z",
+    next_task_due_at: "2026-11-06T10:00:00.000Z",
     closure_reason: null,
     notes_summary: "1 Kanal freehold kothi requirement. Reviewing title search and mutation history with legal desk.",
     created_at: "2026-11-01T11:30:00.000Z",
@@ -463,7 +529,7 @@ const SEED_LEADS: CrmLead[] = [
     stage: "closed",
     source: "Website Contact",
     assigned_to: "1e5c864f-af1d-4349-a4b3-f63946decdba",
-    next_followup_at: null,
+    next_task_due_at: null,
     closure_reason: "already_purchased",
     notes_summary: "Called back — already booked a flat last week. Closed after first conversation.",
     created_at: "2026-10-28T09:00:00.000Z",
@@ -479,7 +545,7 @@ const SEED_COMMENTS: CrmLeadComment[] = [
     author_name: "Karan Yadav",
     author_role: "admin",
     body: "Spoke to Mr. Malhotra. He prefers a ready-to-move 4 BHK with OC received. Site walk locked for Saturday.",
-    followup_scheduled_for: "2026-11-03T11:00:00.000Z",
+    task_scheduled_for: "2026-11-03T11:00:00.000Z",
     created_at: "2026-10-31T10:00:00.000Z",
   },
   {
@@ -489,7 +555,7 @@ const SEED_COMMENTS: CrmLeadComment[] = [
     author_name: "Ishan Kaushal",
     author_role: "admin",
     body: "Shared floor plans and real sun-path video on WhatsApp. Confirmed site visit with society manager.",
-    followup_scheduled_for: "2026-11-03T11:00:00.000Z",
+    task_scheduled_for: "2026-11-03T11:00:00.000Z",
     created_at: "2026-11-02T10:00:00.000Z",
   },
   {
@@ -499,7 +565,7 @@ const SEED_COMMENTS: CrmLeadComment[] = [
     author_name: "Ishan Kaushal",
     author_role: "admin",
     body: "Landlord agreed to 45-day rent-free fit-out period and 15% escalation every 3 years. Sending draft LOI today.",
-    followup_scheduled_for: "2026-11-05T11:00:00.000Z",
+    task_scheduled_for: "2026-11-05T11:00:00.000Z",
     created_at: "2026-11-04T08:00:00.000Z",
   },
 ];
@@ -515,6 +581,8 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "3-10cr",
     specs: "2,180 sq.ft carpet · OC Received · 2 Parking",
     verification_badge: "OC & Title Verified",
+    image_urls: [],
+    cover_image_url: null,
     added_by_id: "1e5c864f-af1d-4349-a4b3-f63946decdba",
     added_by_name: "Karan Yadav",
     added_by_role: "sales",
@@ -531,6 +599,8 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "3-10cr",
     specs: "300 sq.yd plot · 4,100 sq.ft built · Park facing",
     verification_badge: "Freehold & Walked",
+    image_urls: [],
+    cover_image_url: null,
     added_by_id: "1e5c864f-af1d-4349-a4b3-f63946decdba",
     added_by_name: "Karan Yadav",
     added_by_role: "sales",
@@ -547,6 +617,8 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "3-10cr",
     specs: "1,850 sq.ft · 28 ft frontage · Main road parking",
     verification_badge: "Frontage & NOC Checked",
+    image_urls: [],
+    cover_image_url: null,
     added_by_id: "83949b21-3a79-4927-b645-101c5bbce73c",
     added_by_name: "Ishan Kaushal",
     added_by_role: "sales",
@@ -563,6 +635,8 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "1-3cr",
     specs: "265 sq.yd · 30m road approach · Approved layout",
     verification_badge: "Boundary Pillars Walked",
+    image_urls: [],
+    cover_image_url: null,
     added_by_id: "83949b21-3a79-4927-b645-101c5bbce73c",
     added_by_name: "Ishan Kaushal",
     added_by_role: "sales",
@@ -579,6 +653,8 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "1-3cr",
     specs: "1,640 sq.ft carpet · 30:40:30 payment plan",
     verification_badge: "RERA & Escrow Audited",
+    image_urls: [],
+    cover_image_url: null,
     added_by_id: "6605a758-8ee3-470d-ad64-14865ddae023",
     added_by_name: "Anuj Rattan",
     added_by_role: "superadmin",
@@ -595,6 +671,8 @@ const SEED_PROPERTIES: CrmProperty[] = [
     budget_bracket: "50l-1cr",
     specs: "1,800 sq.ft · Wet point · 9-yr registered lease",
     verification_badge: "Ready for Fit-Out",
+    image_urls: [],
+    cover_image_url: null,
     added_by_id: "83949b21-3a79-4927-b645-101c5bbce73c",
     added_by_name: "Ishan Kaushal",
     added_by_role: "sales",
@@ -603,13 +681,14 @@ const SEED_PROPERTIES: CrmProperty[] = [
   },
 ];
 
-const SEED_TASKS: CrmTask[] = SEED_LEADS.filter((l) => l.next_followup_at).map((l, idx) => ({
+const SEED_TASKS: CrmTask[] = SEED_LEADS.filter((l) => l.next_task_due_at).map((l, idx) => ({
   id: `task-seed-${idx + 1}`,
   lead_id: l.id,
   title: `Follow up with ${l.name}`,
   description: l.notes_summary || "Seeded from next follow-up.",
+  task_type: "follow_up" as const,
   status: "open" as const,
-  due_at: l.next_followup_at as string,
+  due_at: l.next_task_due_at as string,
   assigned_to: l.assigned_to,
   created_by: l.assigned_to,
   completed_at: null,
@@ -697,7 +776,10 @@ export async function getCrmSnapshot(): Promise<CrmStateSnapshot> {
         comments,
         // Prefer live inventory rows. Only fall back to demo seed when the table is empty.
         properties: properties.length ? properties : [],
-        tasks,
+        tasks: tasks.map((task) => ({
+          ...task,
+          task_type: normalizeTaskType(task.task_type),
+        })),
       };
     } catch (err) {
       console.warn("[crm-store] Supabase query failed, falling back to memory store:", err);
@@ -733,7 +815,7 @@ export async function createOrMergeLead(input: {
   message?: string;
   source?: string;
   assigned_to?: string | null;
-  next_followup_at?: string | null;
+  next_task_due_at?: string | null;
 }): Promise<CrmLead> {
   const cleanPhone = input.phone.replace(/\D/g, "");
   const normalizedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
@@ -745,7 +827,7 @@ export async function createOrMergeLead(input: {
         ? "commercial"
         : "homes");
 
-  const followupIso = input.next_followup_at ?? new Date(Date.now() + 2 * 3600 * 1000).toISOString();
+  const followupIso = input.next_task_due_at ?? new Date(Date.now() + 2 * 3600 * 1000).toISOString();
 
   const cfg = getSupabaseConfig();
   if (cfg.enabled) {
@@ -763,7 +845,7 @@ export async function createOrMergeLead(input: {
           stage: "new_enquiry",
           source: input.source ?? "Website Contact",
           assigned_to: input.assigned_to ?? null,
-          next_followup_at: followupIso,
+          next_task_due_at: followupIso,
           closure_reason: null,
           notes_summary: input.message ?? "",
         }),
@@ -792,7 +874,7 @@ export async function createOrMergeLead(input: {
         author_name: "Lead Intake",
         author_role: "admin",
         body: `Updated / Repeat enquiry (${input.intent.toUpperCase()}): ${input.message}`,
-        followup_scheduled_for: followupIso,
+        task_scheduled_for: followupIso,
         created_at: now,
       });
     }
@@ -811,7 +893,7 @@ export async function createOrMergeLead(input: {
     stage: "new_enquiry",
     source: input.source ?? "Website Contact",
     assigned_to: input.assigned_to ?? null,
-    next_followup_at: followupIso,
+    next_task_due_at: followupIso,
     site_visit_date: null,
     site_visit_time: null,
     site_visit_property: null,
@@ -836,7 +918,7 @@ export async function bulkCreateLeads(params: {
     budget?: string;
     notes_summary?: string;
     assigned_to?: string | null;
-    next_followup_at?: string | null;
+    next_task_due_at?: string | null;
   }>;
 }): Promise<{ ok: true; importedCount: number } | { ok: false; error: string }> {
   const snap = await getCrmSnapshot();
@@ -867,7 +949,7 @@ export async function bulkCreateLeads(params: {
       message: String(row.notes_summary ?? "Imported via bulk upload").trim(),
       source: `Bulk Upload (${actor.name})`,
       assigned_to: assignedTo,
-      next_followup_at: row.next_followup_at ?? new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
+      next_task_due_at: row.next_task_due_at ?? new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
     });
 
     const mem = getMemoryStore();
@@ -878,7 +960,7 @@ export async function bulkCreateLeads(params: {
       author_name: actor.name,
       author_role: actor.role,
       body: `Bulk imported lead (name + phone required; extra details can be edited on the lead).`,
-      followup_scheduled_for: created.next_followup_at,
+      task_scheduled_for: created.next_task_due_at,
       created_at: new Date().toISOString(),
     });
 
@@ -929,6 +1011,8 @@ export async function addCrmProperty(params: {
           budget_bracket: params.budget_bracket || "1-3cr",
           specs: params.specs.trim() || "Verified RealtyCook Mandate",
           verification_badge: params.verification_badge.trim() || "Ground Verified",
+          image_urls: [],
+          cover_image_url: null,
           added_by_id: actor.id,
           added_by_name: actor.name,
           added_by_role: actor.role,
@@ -952,6 +1036,8 @@ export async function addCrmProperty(params: {
     budget_bracket: params.budget_bracket || "1-3cr",
     specs: params.specs.trim() || "Verified RealtyCook Mandate",
     verification_badge: params.verification_badge.trim() || "Ground Verified",
+    image_urls: [],
+    cover_image_url: null,
     added_by_id: actor.id,
     added_by_name: actor.name,
     added_by_role: actor.role,
@@ -1133,6 +1219,206 @@ export async function updateCrmProperty(params: {
   return { ok: true, property: next };
 }
 
+function extForMime(mime: string) {
+  if (mime === "image/png") return "png";
+  if (mime === "image/webp") return "webp";
+  return "jpg";
+}
+
+function storagePathFromPublicUrl(url: string): string | null {
+  const marker = `/object/public/${INVENTORY_IMAGE_BUCKET}/`;
+  const idx = url.indexOf(marker);
+  if (idx < 0) return null;
+  return decodeURIComponent(url.slice(idx + marker.length).split("?")[0] || "");
+}
+
+async function patchPropertyImages(propertyId: string, imageUrls: string[], coverImageUrl: string | null) {
+  const cfg = getSupabaseConfig();
+  const body = {
+    image_urls: imageUrls,
+    cover_image_url: coverImageUrl,
+  };
+  if (cfg.enabled) {
+    try {
+      const updated = await sbFetch<CrmProperty[]>(
+        `crm_properties?id=eq.${encodeURIComponent(propertyId)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        },
+      );
+      if (updated[0]) return updated[0];
+    } catch (err) {
+      console.warn("[crm-store] patchPropertyImages failed, using memory:", err);
+    }
+  }
+  const mem = getMemoryStore();
+  const idx = mem.properties.findIndex((p) => p.id === propertyId);
+  if (idx < 0) throw new Error("Inventory unit not found.");
+  mem.properties[idx] = {
+    ...mem.properties[idx],
+    image_urls: imageUrls,
+    cover_image_url: coverImageUrl,
+  };
+  return mem.properties[idx];
+}
+
+export async function uploadCrmPropertyImages(params: {
+  actorId: string;
+  propertyId: string;
+  files: Array<{ name: string; type: string; bytes: ArrayBuffer }>;
+}): Promise<{ ok: true; property: CrmProperty } | { ok: false; error: string }> {
+  const snap = await getCrmSnapshot();
+  const actor = snap.users.find((u) => u.id === params.actorId);
+  if (!actor) return { ok: false, error: "Unauthorized actor." };
+  if (!canManageInventory(actor)) {
+    return { ok: false, error: "Only Superadmin, Admin, and SVP Sales can upload inventory images." };
+  }
+
+  const existing = snap.properties.find((p) => p.id === params.propertyId);
+  if (!existing) return { ok: false, error: "Inventory unit not found." };
+
+  const current = propertyImageUrls(existing);
+  const remaining = INVENTORY_MAX_IMAGES - current.length;
+  if (remaining <= 0) {
+    return { ok: false, error: `Maximum of ${INVENTORY_MAX_IMAGES} images allowed per property.` };
+  }
+
+  const files = params.files.slice(0, remaining);
+  if (files.length === 0) return { ok: false, error: "No image files provided." };
+
+  for (const file of files) {
+    const mime = (file.type || "").toLowerCase();
+    if (!INVENTORY_IMAGE_MIME.has(mime)) {
+      return { ok: false, error: "Only JPG, PNG, and WebP images are allowed." };
+    }
+    if (file.bytes.byteLength > INVENTORY_MAX_IMAGE_BYTES) {
+      return { ok: false, error: "Each image must be 5 MB or smaller." };
+    }
+  }
+
+  const cfg = getSupabaseConfig();
+  const uploadedUrls: string[] = [];
+
+  if (cfg.enabled) {
+    const { createClient } = await import("@supabase/supabase-js");
+    const admin = createClient(cfg.url, cfg.key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    for (const file of files) {
+      const mime = (file.type || "image/jpeg").toLowerCase();
+      const path = `${params.propertyId}/${newCrmId()}.${extForMime(mime)}`;
+      const { error } = await admin.storage.from(INVENTORY_IMAGE_BUCKET).upload(path, file.bytes, {
+        contentType: mime === "image/jpg" ? "image/jpeg" : mime,
+        upsert: false,
+        cacheControl: "3600",
+      });
+      if (error) {
+        console.warn("[crm-store] inventory image upload failed:", error.message);
+        return { ok: false, error: error.message || "Image upload failed." };
+      }
+      const { data } = admin.storage.from(INVENTORY_IMAGE_BUCKET).getPublicUrl(path);
+      uploadedUrls.push(data.publicUrl);
+    }
+  } else {
+    // Memory / local fallback: keep as data URLs so previews still work offline.
+    for (const file of files) {
+      const mime = (file.type || "image/jpeg").toLowerCase();
+      const bytes = new Uint8Array(file.bytes);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
+      const b64 = btoa(binary);
+      uploadedUrls.push(`data:${mime};base64,${b64}`);
+    }
+  }
+
+  const nextUrls = [...current, ...uploadedUrls].slice(0, INVENTORY_MAX_IMAGES);
+  const cover = existing.cover_image_url?.trim() || nextUrls[0] || null;
+  try {
+    const property = await patchPropertyImages(params.propertyId, nextUrls, cover);
+    return { ok: true, property };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Failed to save image URLs." };
+  }
+}
+
+export async function deleteCrmPropertyImage(params: {
+  actorId: string;
+  propertyId: string;
+  imageUrl: string;
+}): Promise<{ ok: true; property: CrmProperty } | { ok: false; error: string }> {
+  const snap = await getCrmSnapshot();
+  const actor = snap.users.find((u) => u.id === params.actorId);
+  if (!actor) return { ok: false, error: "Unauthorized actor." };
+  if (!canManageInventory(actor)) {
+    return { ok: false, error: "Only Superadmin, Admin, and SVP Sales can remove inventory images." };
+  }
+
+  const existing = snap.properties.find((p) => p.id === params.propertyId);
+  if (!existing) return { ok: false, error: "Inventory unit not found." };
+
+  const imageUrl = params.imageUrl.trim();
+  const nextUrls = propertyImageUrls(existing).filter((u) => u !== imageUrl);
+  const cover =
+    existing.cover_image_url?.trim() === imageUrl ? nextUrls[0] ?? null : existing.cover_image_url?.trim() || nextUrls[0] || null;
+
+  const cfg = getSupabaseConfig();
+  if (cfg.enabled) {
+    const path = storagePathFromPublicUrl(imageUrl);
+    if (path) {
+      try {
+        const { createClient } = await import("@supabase/supabase-js");
+        const admin = createClient(cfg.url, cfg.key, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+        const { error } = await admin.storage.from(INVENTORY_IMAGE_BUCKET).remove([path]);
+        if (error) console.warn("[crm-store] storage delete warning:", error.message);
+      } catch (err) {
+        console.warn("[crm-store] storage delete failed:", err);
+      }
+    }
+  }
+
+  try {
+    const property = await patchPropertyImages(params.propertyId, nextUrls, cover);
+    return { ok: true, property };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Failed to remove image." };
+  }
+}
+
+export async function setCrmPropertyCoverImage(params: {
+  actorId: string;
+  propertyId: string;
+  imageUrl: string;
+}): Promise<{ ok: true; property: CrmProperty } | { ok: false; error: string }> {
+  const snap = await getCrmSnapshot();
+  const actor = snap.users.find((u) => u.id === params.actorId);
+  if (!actor) return { ok: false, error: "Unauthorized actor." };
+  if (!canManageInventory(actor)) {
+    return { ok: false, error: "Only Superadmin, Admin, and SVP Sales can set cover images." };
+  }
+
+  const existing = snap.properties.find((p) => p.id === params.propertyId);
+  if (!existing) return { ok: false, error: "Inventory unit not found." };
+
+  const imageUrl = params.imageUrl.trim();
+  const urls = propertyImageUrls(existing);
+  if (!urls.includes(imageUrl)) {
+    return { ok: false, error: "Cover image must be one of the property images." };
+  }
+
+  // Move selected cover to front for consistent ordering.
+  const nextUrls = [imageUrl, ...urls.filter((u) => u !== imageUrl)];
+  try {
+    const property = await patchPropertyImages(params.propertyId, nextUrls, imageUrl);
+    return { ok: true, property };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Failed to set cover image." };
+  }
+}
+
 export type CrmLeadUpdateInput = {
   name?: string;
   phone?: string;
@@ -1253,19 +1539,19 @@ export async function assignLeadWithRbac(params: {
     author_name: actor.name,
     author_role: actor.role,
     body: `Assigned lead to ${targetName}.`,
-    followup_scheduled_for: null,
+    task_scheduled_for: null,
     created_at: now,
   });
 
   return { ok: true, lead };
 }
 
-export async function updateLeadStageOrFollowup(params: {
+export async function updateLeadStage(params: {
   actorId: string;
   leadId: string;
   stage?: LeadStage;
   closureReason?: StageReason | null;
-  nextFollowupAt?: string | null;
+  nextTaskDueAt?: string | null;
   siteVisitDate?: string | null;
   siteVisitTime?: string | null;
   siteVisitProperty?: string | null;
@@ -1292,7 +1578,7 @@ export async function updateLeadStageOrFollowup(params: {
       const patch: Record<string, unknown> = { updated_at: now };
       if (params.stage) patch.stage = params.stage;
       if (nextClosureReason !== undefined) patch.closure_reason = nextClosureReason;
-      if (params.nextFollowupAt !== undefined) patch.next_followup_at = params.nextFollowupAt;
+      if (params.nextTaskDueAt !== undefined) patch.next_task_due_at = params.nextTaskDueAt;
       if (params.siteVisitDate !== undefined) patch.site_visit_date = params.siteVisitDate;
       if (params.siteVisitTime !== undefined) patch.site_visit_time = params.siteVisitTime;
       if (params.siteVisitProperty !== undefined) patch.site_visit_property = params.siteVisitProperty;
@@ -1313,7 +1599,7 @@ export async function updateLeadStageOrFollowup(params: {
   const previousStage = lead.stage;
   if (params.stage) lead.stage = params.stage;
   if (nextClosureReason !== undefined) lead.closure_reason = nextClosureReason;
-  if (params.nextFollowupAt !== undefined) lead.next_followup_at = params.nextFollowupAt;
+  if (params.nextTaskDueAt !== undefined) lead.next_task_due_at = params.nextTaskDueAt;
   if (params.siteVisitDate !== undefined) lead.site_visit_date = params.siteVisitDate;
   if (params.siteVisitTime !== undefined) lead.site_visit_time = params.siteVisitTime;
   if (params.siteVisitProperty !== undefined) lead.site_visit_property = params.siteVisitProperty;
@@ -1329,7 +1615,7 @@ export async function updateLeadStageOrFollowup(params: {
       author_name: actor.name,
       author_role: actor.role,
       body: `Scheduled Site Visit on ${params.siteVisitDate}${timeLabel}${propLabel}.`,
-      followup_scheduled_for: lead.next_followup_at,
+      task_scheduled_for: lead.next_task_due_at,
       created_at: now,
     });
   } else if (params.stage && params.stage !== previousStage) {
@@ -1344,7 +1630,7 @@ export async function updateLeadStageOrFollowup(params: {
       author_name: actor.name,
       author_role: actor.role,
       body: `Moved stage from ${previousStage.replace(/_/g, " ")} → ${params.stage.replace(/_/g, " ")}.${reasonNote}`,
-      followup_scheduled_for: lead.next_followup_at,
+      task_scheduled_for: lead.next_task_due_at,
       created_at: now,
     });
   }
@@ -1356,7 +1642,7 @@ export async function addLeadComment(params: {
   actorId: string;
   leadId: string;
   body: string;
-  nextFollowupAt?: string | null;
+  nextTaskDueAt?: string | null;
   newStage?: LeadStage;
 }): Promise<{ ok: true; comment: CrmLeadComment } | { ok: false; error: string }> {
   const snap = await getCrmSnapshot();
@@ -1379,20 +1665,33 @@ export async function addLeadComment(params: {
           author_name: actor.name,
           author_role: actor.role,
           body: cleanBody,
-          followup_scheduled_for: params.nextFollowupAt ?? null,
+          task_scheduled_for: params.nextTaskDueAt ?? null,
         }),
       });
       const leadPatch: Record<string, unknown> = {
         notes_summary: cleanBody,
         updated_at: now,
       };
-      if (params.nextFollowupAt) leadPatch.next_followup_at = params.nextFollowupAt;
+      if (params.nextTaskDueAt) leadPatch.next_task_due_at = params.nextTaskDueAt;
       if (params.newStage) leadPatch.stage = params.newStage;
       await sbFetch(`crm_leads?id=eq.${encodeURIComponent(params.leadId)}`, {
         method: "PATCH",
         body: JSON.stringify(leadPatch),
       });
-      if (inserted[0]) return { ok: true, comment: inserted[0] };
+      if (inserted[0]) {
+        if (params.nextTaskDueAt) {
+          // Keep a single source of truth: scheduling a follow-up creates a typed task.
+          await createCrmTask({
+            actorId: params.actorId,
+            leadId: params.leadId,
+            title: "",
+            description: cleanBody.slice(0, 280),
+            dueAt: params.nextTaskDueAt,
+            taskType: "follow_up",
+          });
+        }
+        return { ok: true, comment: inserted[0] };
+      }
     } catch (err) {
       console.warn("[crm-store] Supabase comment insert failed, using memory store:", err);
     }
@@ -1409,15 +1708,26 @@ export async function addLeadComment(params: {
     author_name: actor.name,
     author_role: actor.role,
     body: cleanBody,
-    followup_scheduled_for: params.nextFollowupAt ?? null,
+    task_scheduled_for: params.nextTaskDueAt ?? null,
     created_at: now,
   };
   mem.comments.unshift(comment);
 
   lead.notes_summary = cleanBody;
-  if (params.nextFollowupAt) lead.next_followup_at = params.nextFollowupAt;
+  if (params.nextTaskDueAt) lead.next_task_due_at = params.nextTaskDueAt;
   if (params.newStage) lead.stage = params.newStage;
   lead.updated_at = now;
+
+  if (params.nextTaskDueAt) {
+    await createCrmTask({
+      actorId: params.actorId,
+      leadId: params.leadId,
+      title: "",
+      description: cleanBody.slice(0, 280),
+      dueAt: params.nextTaskDueAt,
+      taskType: "follow_up",
+    });
+  }
 
   return { ok: true, comment };
 }
@@ -1543,6 +1853,7 @@ export async function createCrmTask(params: {
   title: string;
   description?: string;
   dueAt: string;
+  taskType?: CrmTaskType | string;
   assignedTo?: string | null;
 }): Promise<{ ok: true; task: CrmTask } | { ok: false; error: string }> {
   const snap = await getCrmSnapshot();
@@ -1552,7 +1863,8 @@ export async function createCrmTask(params: {
   const lead = snap.leads.find((l) => l.id === params.leadId);
   if (!lead) return { ok: false, error: "Lead not found." };
 
-  const title = params.title.trim();
+  const taskType = normalizeTaskType(params.taskType ?? "todo");
+  const title = (params.title.trim() || defaultTaskTitle(taskType, lead.name)).trim();
   if (title.length < 3) return { ok: false, error: "Task title needs at least 3 characters." };
   const dueAt = params.dueAt.trim();
   if (!dueAt || Number.isNaN(new Date(dueAt).getTime())) {
@@ -1574,6 +1886,7 @@ export async function createCrmTask(params: {
     lead_id: params.leadId,
     title,
     description: (params.description ?? "").trim(),
+    task_type: taskType,
     status: "open" as const,
     due_at: new Date(dueAt).toISOString(),
     assigned_to: assignedTo,
@@ -1593,7 +1906,7 @@ export async function createCrmTask(params: {
       if (inserted[0]) {
         await sbFetch(`crm_leads?id=eq.${encodeURIComponent(params.leadId)}`, {
           method: "PATCH",
-          body: JSON.stringify({ next_followup_at: row.due_at, updated_at: now }),
+          body: JSON.stringify({ next_task_due_at: row.due_at, updated_at: now }),
         });
         return { ok: true, task: inserted[0] };
       }
@@ -1607,7 +1920,7 @@ export async function createCrmTask(params: {
   mem.tasks.unshift(task);
   const memLead = mem.leads.find((l) => l.id === params.leadId);
   if (memLead) {
-    memLead.next_followup_at = row.due_at;
+    memLead.next_task_due_at = row.due_at;
     memLead.updated_at = now;
   }
   return { ok: true, task };
@@ -1621,6 +1934,7 @@ export async function updateCrmTask(params: {
     description?: string;
     dueAt?: string;
     status?: CrmTaskStatus;
+    taskType?: CrmTaskType | string;
     assignedTo?: string | null;
   };
 }): Promise<{ ok: true; task: CrmTask } | { ok: false; error: string }> {
@@ -1662,6 +1976,10 @@ export async function updateCrmTask(params: {
         : existing.description,
     due_at: dueAt,
     status: nextStatus,
+    task_type:
+      params.patch.taskType !== undefined
+        ? normalizeTaskType(params.patch.taskType)
+        : normalizeTaskType(existing.task_type),
     assigned_to: assignedTo,
     completed_at: nextStatus === "closed" ? existing.completed_at ?? now : null,
     updated_at: now,

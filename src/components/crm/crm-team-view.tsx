@@ -42,7 +42,7 @@ export function CrmTeamView({
         <div className="border-b border-border px-6 py-4">
           <h2 className="text-lg font-bold text-ink">System Accounts &amp; Role Hierarchy</h2>
           <p className="text-xs text-ink/60">
-            1 Superadmin · Admin · Sales — with assignment and follow-up rules enforced on the backend
+            1 Superadmin · Admin · Sales — with assignment and task rules enforced on the backend
           </p>
         </div>
         <div className="divide-y divide-border/70">

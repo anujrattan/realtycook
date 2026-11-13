@@ -10,6 +10,7 @@ import {
   propertyProjectName,
   propertySummary,
 } from "@/lib/crm-inventory";
+import { CrmPropertyImageManager, PropertyCoverThumb } from "@/components/crm/crm-property-images";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -83,6 +84,9 @@ export type CrmInventoryRecordModalProps = {
   busy: boolean;
   onClose: () => void;
   onSave: (form: InventoryEditForm) => Promise<boolean> | boolean;
+  onUploadImages: (files: File[]) => Promise<boolean>;
+  onDeleteImage: (imageUrl: string) => Promise<boolean>;
+  onSetCoverImage: (imageUrl: string) => Promise<boolean>;
 };
 
 export function CrmInventoryRecordModal({
@@ -91,6 +95,9 @@ export function CrmInventoryRecordModal({
   busy,
   onClose,
   onSave,
+  onUploadImages,
+  onDeleteImage,
+  onSetCoverImage,
 }: CrmInventoryRecordModalProps) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<InventoryEditForm>(() => formFromProperty(property));
@@ -137,9 +144,13 @@ export function CrmInventoryRecordModal({
         <div className="shrink-0 border-b border-border px-8 py-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-start gap-4">
-              <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-brand-red text-white">
-                <Building2 className="size-6" />
-              </div>
+              {property.cover_image_url || (property.image_urls && property.image_urls.length > 0) ? (
+                <PropertyCoverThumb property={property} size="sm" className="size-14 rounded-2xl" />
+              ) : (
+                <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-brand-red text-white">
+                  <Building2 className="size-6" />
+                </div>
+              )}
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold tracking-[0.14em] text-ink/45 uppercase">Inventory record</p>
                 <h2
@@ -183,6 +194,16 @@ export function CrmInventoryRecordModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="border-b border-border px-8 py-6">
+            <CrmPropertyImageManager
+              property={property}
+              canEdit={canEdit}
+              busy={busy}
+              onUpload={onUploadImages}
+              onDelete={onDeleteImage}
+              onSetCover={onSetCoverImage}
+            />
+          </div>
           {editing ? (
             <form onSubmit={handleSubmit} className="space-y-5 px-8 py-8">
               <div className="grid gap-4 sm:grid-cols-2">

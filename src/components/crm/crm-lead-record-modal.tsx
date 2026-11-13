@@ -23,13 +23,16 @@ import {
   buildWhatsAppUrl,
   classifyTaskDue,
   cleanAdvisorName,
+  CRM_TASK_TYPE_OPTIONS,
   formatShortDate,
   formatSiteVisit,
-  isFollowupOverdue,
+  isDueOverdue,
   PILLAR_LABELS,
   stageReasonLabel,
   STAGES,
   taskStatusStyles,
+  taskTypeLabel,
+  type CrmTaskType,
 } from "@/components/crm/crm-shared";
 
 export type LeadEditForm = {
@@ -67,8 +70,6 @@ export type CrmLeadRecordModalProps = {
   busy: boolean;
   commentText: string;
   setCommentText: (value: string) => void;
-  followupInput: string;
-  setFollowupInput: (value: string) => void;
   onSubmitComment: (e: React.FormEvent) => void;
   siteVisitDate: string;
   setSiteVisitDate: (value: string) => void;
@@ -82,6 +83,8 @@ export type CrmLeadRecordModalProps = {
   onAssignToMe: () => void;
   onSaveLead: (form: LeadEditForm) => Promise<boolean> | boolean;
   leadTasks: CrmTask[];
+  taskType: CrmTaskType;
+  setTaskType: (value: CrmTaskType) => void;
   taskTitle: string;
   setTaskTitle: (value: string) => void;
   taskDescription: string;
@@ -103,8 +106,6 @@ export function CrmLeadRecordModal({
   busy,
   commentText,
   setCommentText,
-  followupInput,
-  setFollowupInput,
   onSubmitComment,
   siteVisitDate,
   setSiteVisitDate,
@@ -118,6 +119,8 @@ export function CrmLeadRecordModal({
   onAssignToMe,
   onSaveLead,
   leadTasks,
+  taskType,
+  setTaskType,
   taskTitle,
   setTaskTitle,
   taskDescription,
@@ -403,14 +406,14 @@ export function CrmLeadRecordModal({
               </div>
 
               <div>
-                <p className="text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase">Next due</p>
+                <p className="text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase">Next task due</p>
                 <p
                   className={cn(
                     "mt-2 text-base font-semibold",
-                    isFollowupOverdue(lead.next_followup_at, nowMs) ? "text-brand-red" : "text-ink",
+                    isDueOverdue(lead.next_task_due_at, nowMs) ? "text-brand-red" : "text-ink",
                   )}
                 >
-                  {formatShortDate(lead.next_followup_at)}
+                  {formatShortDate(lead.next_task_due_at)}
                 </p>
               </div>
 
@@ -426,24 +429,43 @@ export function CrmLeadRecordModal({
                   <div>
                     <p className="text-sm font-bold text-ink">Tasks</p>
                     <p className="mt-1 text-xs text-ink/55">
-                      Work items with an end date — shortlist properties, share options, prepare docs.
+                      Follow-ups, calls, emails, and to-dos — one queue like HubSpot.
                     </p>
                   </div>
                 </div>
 
                 <form onSubmit={onCreateTask} className="mt-4 space-y-3">
                   <div>
+                    <Label htmlFor="lead-task-type">Task type *</Label>
+                    <select
+                      id="lead-task-type"
+                      value={taskType}
+                      onChange={(e) => setTaskType(e.target.value as CrmTaskType)}
+                      className="mt-1.5 h-10 w-full rounded-xl border border-border bg-white px-3 text-sm font-semibold"
+                    >
+                      {CRM_TASK_TYPE_OPTIONS.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label} — {opt.hint}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
                     <Label htmlFor="lead-task-title">Task title *</Label>
                     <Input
                       id="lead-task-title"
                       value={taskTitle}
                       onChange={(e) => setTaskTitle(e.target.value)}
-                      placeholder="Shortlist 3 options and share on WhatsApp"
+                      placeholder={
+                        taskType === "todo"
+                          ? "Shortlist 3 options and share on WhatsApp"
+                          : `Leave blank to use “${taskTypeLabel(taskType)} with ${lead.name}”`
+                      }
                       className="mt-1.5"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="lead-task-due">Due / end date *</Label>
+                    <Label htmlFor="lead-task-due">Due date *</Label>
                     <input
                       id="lead-task-due"
                       type="datetime-local"
@@ -460,13 +482,13 @@ export function CrmLeadRecordModal({
                       rows={2}
                       value={taskDescription}
                       onChange={(e) => setTaskDescription(e.target.value)}
-                      placeholder="Budget band, localities, configs…"
+                      placeholder="Context, budget band, localities…"
                       className="mt-1.5 resize-none"
                     />
                   </div>
                   <Button
                     type="submit"
-                    disabled={busy || !taskTitle.trim() || !taskDueInput}
+                    disabled={busy || !taskDueInput || (taskType === "todo" && !taskTitle.trim())}
                     className="h-10 rounded-xl bg-ink text-white hover:bg-brand-red"
                   >
                     <Plus className="size-4" />
@@ -494,6 +516,9 @@ export function CrmLeadRecordModal({
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
+                                <span className="rounded-full bg-ink/8 px-2 py-0.5 text-[10px] font-bold tracking-wide text-ink uppercase">
+                                  {taskTypeLabel(task.task_type)}
+                                </span>
                                 <span
                                   className={cn(
                                     "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
@@ -660,8 +685,7 @@ export function CrmLeadRecordModal({
             <div className="min-h-0 flex-1 overflow-y-auto px-8 py-8">
               <h3 className="text-sm font-bold text-ink">Activity</h3>
               <p className="mt-1 text-sm text-ink/55">
-                Optional extra notes and follow-ups. Call outcomes from status changes appear in the timeline
-                below.
+                Notes and call outcomes. Schedule callbacks and work as Tasks on the left.
               </p>
 
               <div className="mt-6 space-y-4">
@@ -670,24 +694,9 @@ export function CrmLeadRecordModal({
                   rows={4}
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="Extra information, follow-up context, or internal note…"
+                  placeholder="Extra information or internal note…"
                   className="min-h-[110px] resize-none rounded-2xl border-border bg-white text-sm leading-relaxed"
                 />
-                <div>
-                  <label
-                    htmlFor="crm-followup"
-                    className="block text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase"
-                  >
-                    Next follow-up
-                  </label>
-                  <input
-                    id="crm-followup"
-                    type="datetime-local"
-                    value={followupInput}
-                    onChange={(e) => setFollowupInput(e.target.value)}
-                    className="mt-2 h-11 w-full rounded-2xl border border-border bg-white px-3.5 text-sm text-ink"
-                  />
-                </div>
               </div>
 
               <div className="mt-10">
@@ -717,10 +726,10 @@ export function CrmLeadRecordModal({
                             <p className="text-xs text-ink/45">{formatShortDate(c.created_at)}</p>
                           </div>
                           <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink/75">{c.body}</p>
-                          {c.followup_scheduled_for && (
+                          {c.task_scheduled_for && (
                             <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-2.5 py-1 text-[11px] font-semibold text-ink">
                               <CalendarClock className="size-3" />
-                              Follow-up {formatShortDate(c.followup_scheduled_for)}
+                              Task due {formatShortDate(c.task_scheduled_for)}
                             </p>
                           )}
                         </div>

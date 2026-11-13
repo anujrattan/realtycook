@@ -15,7 +15,7 @@ import {
 } from "@/components/crm/crm-profile-modal";
 import { parseBulkLeadFile, type BulkLeadRow } from "@/lib/crm-bulk-import";
 import { CrmDashboardPanel } from "@/components/crm/crm-dashboard-panel";
-import { CrmFollowupToast } from "@/components/crm/crm-followup-toast";
+import { CrmTaskToast, type TaskDuePopup } from "@/components/crm/crm-task-toast";
 import { CrmInventoryRecordModal } from "@/components/crm/crm-inventory-record-modal";
 import { CrmInventoryView } from "@/components/crm/crm-inventory-view";
 import { CrmLeadRecordModal } from "@/components/crm/crm-lead-record-modal";
@@ -25,7 +25,6 @@ import {
   type CrmNavId,
   type TaskBucket,
   classifyTaskDue,
-  followupKey,
   getStageReasonOption,
   normalizeBudget,
   normalizeIntent,
@@ -47,6 +46,7 @@ import {
   type CrmTask,
   CrmProperty,
   CrmStateSnapshot,
+  CrmTaskType,
   CrmUser,
   LeadIntent,
   LeadStage,
@@ -81,7 +81,7 @@ export function CrmDashboard({
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState("");
-  const [followupInput, setFollowupInput] = useState("");
+  const [taskType, setTaskType] = useState<CrmTaskType>("follow_up");
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
   const [taskDueInput, setTaskDueInput] = useState("");
@@ -92,13 +92,13 @@ export function CrmDashboard({
   const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null);
   const [dropStageId, setDropStageId] = useState<LeadStage | null>(null);
 
-  const [followupPopup, setFollowupPopup] = useState<CrmLead | null>(null);
-  const [handledFollowupKeys, setHandledFollowupKeys] = useState<Set<string>>(() => new Set());
+  const [taskPopup, setTaskPopup] = useState<TaskDuePopup | null>(null);
   const [handledTaskKeys, setHandledTaskKeys] = useState<Set<string>>(() => new Set());
 
   const [showNewLead, setShowNewLead] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [showAddProperty, setShowAddProperty] = useState(false);
+  const [pendingPropertyImages, setPendingPropertyImages] = useState<File[]>([]);
   const [showProfile, setShowProfile] = useState(false);
   const [profileForm, setProfileForm] = useState<ProfileFormState>({
     firstName: "",
@@ -233,23 +233,24 @@ export function CrmDashboard({
     };
   }, [snapshot.tasks, actor, nowMs]);
 
-  const pendingPopupFollowups = useMemo(() => {
-    // Reuse toast for urgent open tasks mapped back to their leads.
+  const pendingTaskPopups = useMemo(() => {
     const urgent = [...myTasks.missed, ...myTasks.today].filter(
       (task) => !handledTaskKeys.has(taskKey(task)),
     );
-    const leads: CrmLead[] = [];
+    const items: TaskDuePopup[] = [];
+    const seenLeads = new Set<string>();
     for (const task of urgent) {
       const lead = snapshot.leads.find((l) => l.id === task.lead_id);
-      if (!lead) continue;
-      if (leads.some((l) => l.id === lead.id)) continue;
-      leads.push({
-        ...lead,
-        next_followup_at: task.due_at,
-        notes_summary: task.title + (task.description ? ` — ${task.description}` : ""),
+      if (!lead || seenLeads.has(lead.id)) continue;
+      seenLeads.add(lead.id);
+      items.push({
+        taskId: task.id,
+        dueAt: task.due_at,
+        title: task.title + (task.description ? ` — ${task.description}` : ""),
+        lead,
       });
     }
-    return leads;
+    return items;
   }, [myTasks.missed, myTasks.today, handledTaskKeys, snapshot.leads]);
 
   const selectedLead: CrmLead | null = useMemo(
@@ -394,60 +395,36 @@ export function CrmDashboard({
     }
   }, [selectedLeadId, visibleLeads]);
 
-  function markFollowupHandled(lead: CrmLead | null | undefined) {
-    if (!lead?.next_followup_at) return;
-    const key = followupKey(lead);
-    setHandledFollowupKeys((prev) => {
-      if (prev.has(key)) return prev;
-      const next = new Set(prev);
-      next.add(key);
-      return next;
-    });
-    // Also dismiss matching open task toasts for this lead/due time.
-    const matching = (snapshot.tasks ?? []).filter(
-      (t) =>
-        t.lead_id === lead.id &&
-        t.status === "open" &&
-        t.due_at === lead.next_followup_at,
-    );
-    if (matching.length) {
+  function advanceTaskPopup(handled?: TaskDuePopup | null) {
+    if (handled) {
       setHandledTaskKeys((prev) => {
         const next = new Set(prev);
-        for (const t of matching) next.add(taskKey(t));
+        next.add(taskKey({ id: handled.taskId, due_at: handled.dueAt, status: "open" }));
         return next;
       });
     }
+    const remaining = pendingTaskPopups.filter((item) =>
+      handled ? item.taskId !== handled.taskId : true,
+    );
+    setTaskPopup(remaining[0] ?? null);
   }
 
-  function advanceFollowupPopup(handledLead?: CrmLead | null) {
-    if (handledLead) markFollowupHandled(handledLead);
-    const handledKey = handledLead?.next_followup_at ? followupKey(handledLead) : null;
-    const remaining = pendingPopupFollowups.filter((lead) => {
-      if (!handledKey) return true;
-      return followupKey(lead) !== handledKey;
-    });
-    setFollowupPopup(remaining[0] ?? null);
-  }
-
-  // Bottom-right popup: show next due/missed item that hasn't been acted on yet
+  // Bottom-right popup: next missed / due-today task that hasn't been dismissed yet
   useEffect(() => {
     if (!actor || nowMs === null) return;
 
-    if (pendingPopupFollowups.length === 0) {
-      if (followupPopup) setFollowupPopup(null);
+    if (pendingTaskPopups.length === 0) {
+      if (taskPopup) setTaskPopup(null);
       return;
     }
 
     const currentStillPending =
-      followupPopup &&
-      pendingPopupFollowups.some(
-        (lead) => lead.id === followupPopup.id && lead.next_followup_at === followupPopup.next_followup_at,
-      );
+      taskPopup && pendingTaskPopups.some((item) => item.taskId === taskPopup.taskId);
 
     if (!currentStillPending) {
-      setFollowupPopup(pendingPopupFollowups[0]);
+      setTaskPopup(pendingTaskPopups[0] ?? null);
     }
-  }, [actor, nowMs, pendingPopupFollowups, followupPopup]);
+  }, [actor, nowMs, pendingTaskPopups, taskPopup]);
 
   function saveLocalSnapshot(next: CrmStateSnapshot) {
     const normalized: CrmStateSnapshot = { ...next, tasks: next.tasks ?? [] };
@@ -484,7 +461,7 @@ export function CrmDashboard({
         stage: "new_enquiry",
         source: String(body.source ?? "Direct Entry"),
         assigned_to: body.assignedTo ? String(body.assignedTo) : null,
-        next_followup_at: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
+        next_task_due_at: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
         site_visit_date: null,
         site_visit_time: null,
         site_visit_property: null,
@@ -516,7 +493,7 @@ export function CrmDashboard({
           stage: "new_enquiry",
           source: `Bulk Upload (${actor.name})`,
           assigned_to: actor.role === "sales" ? actor.id : null,
-          next_followup_at: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
+          next_task_due_at: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
           site_visit_date: null,
           site_visit_time: null,
           site_visit_property: null,
@@ -590,6 +567,8 @@ export function CrmDashboard({
         budget_bracket: String(body.budget_bracket ?? "1-3cr"),
         specs: String(body.specs ?? "").trim() || "Verified RealtyCook Mandate",
         verification_badge: String(body.verification_badge ?? "Ground Verified").trim(),
+        image_urls: [],
+        cover_image_url: null,
         added_by_id: actor.id,
         added_by_name: actor.name,
         added_by_role: actor.role,
@@ -715,10 +694,10 @@ export function CrmDashboard({
             closure_reason: keepReason
               ? (closureReason !== undefined ? closureReason : l.closure_reason)
               : null,
-            next_followup_at:
-              body.nextFollowupAt !== undefined
-                ? (body.nextFollowupAt as string | null)
-                : l.next_followup_at,
+            next_task_due_at:
+              body.nextTaskDueAt !== undefined
+                ? (body.nextTaskDueAt as string | null)
+                : l.next_task_due_at,
             site_visit_date:
               body.siteVisitDate !== undefined
                 ? (body.siteVisitDate as string | null)
@@ -746,7 +725,7 @@ export function CrmDashboard({
                   body: `Scheduled Site Visit on ${String(body.siteVisitDate)}${
                     body.siteVisitTime ? ` at ${String(body.siteVisitTime)}` : " (time flexible)"
                   }${body.siteVisitProperty ? ` for ${String(body.siteVisitProperty)}` : ""}.`,
-                  followup_scheduled_for: null,
+                  task_scheduled_for: null,
                   created_at: now,
                 },
                 ...snapshot.comments,
@@ -762,7 +741,7 @@ export function CrmDashboard({
                     body: `Moved stage → ${String(stage).replace(/_/g, " ")}${
                       closureReason ? ` (${String(closureReason).replace(/_/g, " ")})` : ""
                     }.`,
-                    followup_scheduled_for: null,
+                    task_scheduled_for: null,
                     created_at: now,
                   },
                   ...snapshot.comments,
@@ -776,7 +755,7 @@ export function CrmDashboard({
       const leadId = String(body.leadId ?? "");
       const text = String(body.body ?? "").trim();
       if (!text) return false;
-      const nextFollowupAt = body.nextFollowupAt ? String(body.nextFollowupAt) : null;
+      const nextTaskDueAt = body.nextTaskDueAt ? String(body.nextTaskDueAt) : null;
       saveLocalSnapshot({
         ...snapshot,
         comments: [
@@ -787,7 +766,7 @@ export function CrmDashboard({
             author_name: actor.name,
             author_role: actor.role,
             body: text,
-            followup_scheduled_for: nextFollowupAt,
+            task_scheduled_for: nextTaskDueAt,
             created_at: now,
           },
           ...snapshot.comments,
@@ -797,7 +776,7 @@ export function CrmDashboard({
             ? {
                 ...l,
                 notes_summary: text,
-                next_followup_at: nextFollowupAt ?? l.next_followup_at,
+                next_task_due_at: nextTaskDueAt ?? l.next_task_due_at,
                 updated_at: now,
               }
             : l,
@@ -905,7 +884,15 @@ export function CrmDashboard({
 
     if (action === "create_task") {
       const leadId = String(body.leadId ?? "");
-      const title = String(body.title ?? "").trim();
+      const lead = snapshot.leads.find((l) => l.id === leadId);
+      const taskTypeValue = (String(body.taskType ?? "todo") as CrmTaskType) || "todo";
+      let title = String(body.title ?? "").trim();
+      if (!title && lead) {
+        if (taskTypeValue === "follow_up") title = `Follow up with ${lead.name}`;
+        else if (taskTypeValue === "call") title = `Call ${lead.name}`;
+        else if (taskTypeValue === "email") title = `Email ${lead.name}`;
+        else if (taskTypeValue === "meeting") title = `Meeting with ${lead.name}`;
+      }
       const dueAt = body.dueAt ? new Date(String(body.dueAt)).toISOString() : "";
       if (!leadId || title.length < 3 || !dueAt || Number.isNaN(new Date(dueAt).getTime())) {
         setBannerError("Task title and a valid due date are required.");
@@ -916,6 +903,7 @@ export function CrmDashboard({
         lead_id: leadId,
         title,
         description: String(body.description ?? "").trim(),
+        task_type: taskTypeValue,
         status: "open",
         due_at: dueAt,
         assigned_to: body.assignedTo ? String(body.assignedTo) : actor.id,
@@ -928,7 +916,7 @@ export function CrmDashboard({
         ...snapshot,
         tasks: [task, ...(snapshot.tasks ?? [])],
         leads: snapshot.leads.map((l) =>
-          l.id === leadId ? { ...l, next_followup_at: dueAt, updated_at: now } : l,
+          l.id === leadId ? { ...l, next_task_due_at: dueAt, updated_at: now } : l,
         ),
       });
       return true;
@@ -1003,19 +991,13 @@ export function CrmDashboard({
   async function handleAddComment(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedLead || !commentText.trim()) return;
-    const previousFollowup = selectedLead;
-    const isoFollowup = followupInput ? new Date(followupInput).toISOString() : null;
     const ok = await postCrmAction({
       action: "add_comment",
       leadId: selectedLead.id,
       body: commentText,
-      nextFollowupAt: isoFollowup,
     });
     if (ok) {
       setCommentText("");
-      setFollowupInput("");
-      // Updating the lead from the record counts as acting on the current due follow-up
-      advanceFollowupPopup(previousFollowup);
     }
   }
 
@@ -1065,11 +1047,100 @@ export function CrmDashboard({
     });
   }
 
+  async function postPropertyImages(
+    propertyId: string,
+    opts:
+      | { mode: "upload"; files: File[] }
+      | { mode: "delete"; imageUrl: string }
+      | { mode: "set_cover"; imageUrl: string },
+    manageBusy = true,
+  ) {
+    if (manageBusy) setBusy(true);
+    setBannerError(null);
+    try {
+      let res: Response;
+      if (opts.mode === "upload") {
+        const form = new FormData();
+        form.set("actorId", actor.id);
+        form.set("propertyId", propertyId);
+        for (const file of opts.files) form.append("files", file);
+        res = await fetch("/api/crm/property-images", { method: "POST", body: form });
+      } else {
+        res = await fetch("/api/crm/property-images", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: opts.mode,
+            actorId: actor.id,
+            propertyId,
+            imageUrl: opts.imageUrl,
+          }),
+        });
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setBannerError(data.error ?? "Image action failed.");
+        return false;
+      }
+      if (data.snapshot) saveLocalSnapshot(data.snapshot as CrmStateSnapshot);
+      return true;
+    } catch {
+      setBannerError("Image action failed.");
+      return false;
+    } finally {
+      if (manageBusy) setBusy(false);
+    }
+  }
+
   async function handleAddProperty(e: React.FormEvent) {
     e.preventDefault();
-    const ok = await postCrmAction({ action: "add_property", ...propertyForm });
-    if (ok) {
+    setBusy(true);
+    setBannerError(null);
+    try {
+      const res = await fetch("/api/crm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "add_property", actorId: actor.id, ...propertyForm }),
+      });
+      if (res.status === 404 || res.status === 405) {
+        const ok = applyLocalFallbackAction({ action: "add_property", ...propertyForm });
+        if (ok) {
+          setShowAddProperty(false);
+          setPendingPropertyImages([]);
+          setPropertyForm({
+            title: "",
+            pillar: "homes",
+            intent: "buy",
+            locality: "",
+            price_label: "",
+            budget_bracket: "1-3cr",
+            specs: "",
+            verification_badge: "Ground Verified",
+          });
+        }
+        return;
+      }
+      const data = await res.json();
+      if (!res.ok) {
+        setBannerError(data.error ?? "Could not add property.");
+        return;
+      }
+      if (data.snapshot) saveLocalSnapshot(data.snapshot as CrmStateSnapshot);
+      const propertyId = (data.property as CrmProperty | undefined)?.id;
+      if (propertyId && pendingPropertyImages.length > 0) {
+        const uploaded = await postPropertyImages(
+          propertyId,
+          { mode: "upload", files: pendingPropertyImages },
+          false,
+        );
+        if (!uploaded) {
+          setBannerSuccess("Property saved, but some images failed to upload.");
+        } else {
+          setBannerSuccess("Property and images saved.");
+        }
+      }
       setShowAddProperty(false);
+      setPendingPropertyImages([]);
       setPropertyForm({
         title: "",
         pillar: "homes",
@@ -1080,6 +1151,15 @@ export function CrmDashboard({
         specs: "",
         verification_badge: "Ground Verified",
       });
+      if (propertyId) setSelectedPropertyId(propertyId);
+    } catch {
+      const ok = applyLocalFallbackAction({ action: "add_property", ...propertyForm });
+      if (ok) {
+        setShowAddProperty(false);
+        setPendingPropertyImages([]);
+      }
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -1131,35 +1211,46 @@ export function CrmDashboard({
       return;
     }
 
-    const nextFollowupAt = option.schedulesFollowup
+    const leadId = pendingStageChange.leadId;
+    const leadName =
+      snapshot.leads.find((l) => l.id === leadId)?.name ?? "lead";
+    const nextTaskDueAt = option.createsFollowUpTask
       ? new Date(Date.now() + 24 * 3600 * 1000).toISOString()
       : undefined;
-    const leadId = pendingStageChange.leadId;
 
     const ok = await postCrmAction({
       action: "update_stage",
       leadId,
       stage: option.resultsIn,
       closureReason: reason,
-      ...(nextFollowupAt ? { nextFollowupAt } : {}),
     });
     if (!ok) return;
 
     if (note) {
-      const commentBody = `${option.label}\n\n${note}`;
       await postCrmAction({
         action: "add_comment",
         leadId,
-        body: commentBody,
-        ...(nextFollowupAt ? { nextFollowupAt } : {}),
+        body: `${option.label}\n\n${note}`,
+      });
+    }
+
+    if (nextTaskDueAt) {
+      await postCrmAction({
+        action: "create_task",
+        leadId,
+        taskType: "follow_up",
+        title: `Follow up with ${leadName}`,
+        description: option.label,
+        dueAt: nextTaskDueAt,
+        assignedTo: actor.id,
       });
     }
 
     setSelectedLeadId(leadId);
     setPendingStageChange(null);
     setBannerSuccess(
-      option.schedulesFollowup
-        ? "Call outcome saved. Follow-up set for tomorrow."
+      option.createsFollowUpTask
+        ? "Call outcome saved. Follow-up task set for tomorrow."
         : note
           ? "Status and discussion saved to the timeline."
           : "Status saved.",
@@ -1208,13 +1299,18 @@ export function CrmDashboard({
   async function handleCreateTask(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedLeadId) return;
-    if (!taskTitle.trim() || !taskDueInput) {
-      setBannerError("Task title and due date are required.");
+    if (!taskDueInput || (taskType === "todo" && !taskTitle.trim())) {
+      setBannerError(
+        taskType === "todo"
+          ? "Task title and due date are required."
+          : "Due date is required.",
+      );
       return;
     }
     const ok = await postCrmAction({
       action: "create_task",
       leadId: selectedLeadId,
+      taskType,
       title: taskTitle.trim(),
       description: taskDescription.trim(),
       dueAt: new Date(taskDueInput).toISOString(),
@@ -1224,6 +1320,7 @@ export function CrmDashboard({
       setTaskTitle("");
       setTaskDescription("");
       setTaskDueInput("");
+      setTaskType("follow_up");
       setBannerSuccess("Task created.");
     }
   }
@@ -1250,9 +1347,9 @@ export function CrmDashboard({
       title: "Lead Pipeline",
       subtitle: "Drag cards across stages or open a lead record for full detail.",
     },
-    followups: {
+    tasks: {
       title: "Tasks",
-      subtitle: "Red missed · yellow due today · white open · green closed (Closed filter).",
+      subtitle: "Follow-ups, calls, emails & to-dos — missed · due today · upcoming · closed.",
     },
     inventory: {
       title: "Verified Inventory",
@@ -1264,7 +1361,7 @@ export function CrmDashboard({
     },
     dashboard: {
       title: "Dashboard",
-      subtitle: "Missed tasks, recent activity, and a full lead snapshot.",
+      subtitle: "Tasks, Activity, and full Lead snapshot.",
     },
   };
 
@@ -1279,7 +1376,7 @@ export function CrmDashboard({
         showUserManagement={canManageUsers(actor)}
         counts={{
           pipeline: visibleLeads.length,
-          followups: myTasks.today.length + myTasks.missed.length,
+          tasks: myTasks.today.length + myTasks.missed.length,
           inventory: snapshot.properties.length,
           team: snapshot.users.length,
           missed: myTasks.missed.length,
@@ -1356,7 +1453,7 @@ export function CrmDashboard({
             />
           )}
 
-          {activeTab === "followups" && (
+          {activeTab === "tasks" && (
             <CrmTasksView
               myTasks={myTasks}
               taskBucket={taskBucket}
@@ -1428,6 +1525,15 @@ export function CrmDashboard({
           busy={busy}
           onClose={() => setSelectedPropertyId(null)}
           onSave={handleSaveInventory}
+          onUploadImages={(files) =>
+            postPropertyImages(selectedProperty.id, { mode: "upload", files })
+          }
+          onDeleteImage={(imageUrl) =>
+            postPropertyImages(selectedProperty.id, { mode: "delete", imageUrl })
+          }
+          onSetCoverImage={(imageUrl) =>
+            postPropertyImages(selectedProperty.id, { mode: "set_cover", imageUrl })
+          }
         />
       )}
 
@@ -1443,8 +1549,6 @@ export function CrmDashboard({
           busy={busy}
           commentText={commentText}
           setCommentText={setCommentText}
-          followupInput={followupInput}
-          setFollowupInput={setFollowupInput}
           onSubmitComment={handleAddComment}
           siteVisitDate={siteVisitDate}
           setSiteVisitDate={setSiteVisitDate}
@@ -1473,6 +1577,8 @@ export function CrmDashboard({
           }
           onSaveLead={handleSaveLead}
           leadTasks={selectedLeadTasks}
+          taskType={taskType}
+          setTaskType={setTaskType}
           taskTitle={taskTitle}
           setTaskTitle={setTaskTitle}
           taskDescription={taskDescription}
@@ -1484,15 +1590,14 @@ export function CrmDashboard({
         />
       )}
 
-      {followupPopup && (
-        <CrmFollowupToast
-          followupPopup={followupPopup}
-          pendingPopupCount={pendingPopupFollowups.length}
+      {taskPopup && (
+        <CrmTaskToast
+          popup={taskPopup}
+          pendingCount={pendingTaskPopups.length}
           nowMs={nowMs}
           actor={actor}
-          advanceFollowupPopup={advanceFollowupPopup}
+          onDismiss={advanceTaskPopup}
           onOpenLead={(lead) => {
-            advanceFollowupPopup(lead);
             setSelectedLeadId(lead.id);
           }}
         />
@@ -1520,11 +1625,16 @@ export function CrmDashboard({
 
       <CrmAddPropertyModal
         open={showAddProperty && canManageInventory(actor)}
-        onClose={() => setShowAddProperty(false)}
+        onClose={() => {
+          setShowAddProperty(false);
+          setPendingPropertyImages([]);
+        }}
         busy={busy}
         actor={actor}
         form={propertyForm}
         setForm={setPropertyForm}
+        pendingImages={pendingPropertyImages}
+        setPendingImages={setPendingPropertyImages}
         onSubmit={handleAddProperty}
       />
 

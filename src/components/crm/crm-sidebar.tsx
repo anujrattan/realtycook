@@ -30,7 +30,7 @@ export function CrmSidebar({
   onNavigate: (id: CrmNavId) => void;
   counts: {
     pipeline: number;
-    followups: number;
+    tasks: number;
     inventory: number;
     team: number;
     missed: number;
@@ -53,11 +53,11 @@ export function CrmSidebar({
       count: counts.pipeline,
     },
     {
-      id: "followups",
+      id: "tasks",
       label: "Tasks",
-      hint: "Open to-dos by due date",
+      hint: "Follow-ups, calls & to-dos",
       icon: CalendarClock,
-      count: counts.followups,
+      count: counts.tasks,
     },
     {
       id: "inventory",

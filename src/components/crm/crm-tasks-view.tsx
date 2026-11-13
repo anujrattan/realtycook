@@ -10,6 +10,7 @@ import {
   PILLAR_LABELS,
   STAGES,
   taskStatusStyles,
+  taskTypeLabel,
   type TaskBucket,
 } from "@/components/crm/crm-shared";
 
@@ -125,6 +126,7 @@ export function CrmTasksView({
           <thead>
             <tr className="border-b border-border bg-cream/60 text-[11px] font-semibold tracking-wider text-ink/55 uppercase">
               <th className="p-3.5">Status</th>
+              <th className="p-3.5">Type</th>
               <th className="p-3.5">Task</th>
               <th className="p-3.5">Lead</th>
               <th className="p-3.5">Assigned To</th>
@@ -135,7 +137,7 @@ export function CrmTasksView({
           <tbody>
             {queue.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-10 text-center text-sm text-ink/50">
+                <td colSpan={7} className="p-10 text-center text-sm text-ink/50">
                   {taskBucket === "closed"
                     ? "No closed tasks yet."
                     : "No open tasks in this view. Create one from a lead record."}
@@ -158,6 +160,11 @@ export function CrmTasksView({
                         )}
                       >
                         {styles.label}
+                      </span>
+                    </td>
+                    <td className="p-3.5">
+                      <span className="inline-flex rounded-full bg-ink/8 px-2.5 py-1 text-[10px] font-bold tracking-wide text-ink uppercase">
+                        {taskTypeLabel(task.task_type)}
                       </span>
                     </td>
                     <td className="p-3.5">

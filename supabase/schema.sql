@@ -10,11 +10,16 @@ create extension if not exists "pgcrypto";
 create table if not exists public.crm_users (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  first_name text not null default '',
+  last_name text not null default '',
   email text not null unique,
   phone text not null,
+  address text not null default '',
+  avatar_url text,
   role text not null check (role in ('superadmin', 'admin', 'sales')),
   designation text not null default 'Sales Advisor',
   active boolean not null default true,
+  must_reset_password boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -42,7 +47,8 @@ create table if not exists public.crm_leads (
   ),
   source text not null default 'Website Form',
   assigned_to uuid references public.crm_users(id) on delete set null,
-  next_followup_at timestamptz,
+  -- Denormalized next open task due (source of truth: crm_tasks)
+  next_task_due_at timestamptz,
   site_visit_date text,
   site_visit_time text,
   site_visit_property text,
@@ -83,7 +89,7 @@ create table if not exists public.crm_lead_comments (
   author_name text not null,
   author_role text not null,
   body text not null,
-  followup_scheduled_for timestamptz,
+  task_scheduled_for timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -105,6 +111,8 @@ create table if not exists public.crm_properties (
   budget_bracket text not null default '1-3cr',
   specs text not null default '',
   verification_badge text not null default 'Ground Verified',
+  image_urls text[] not null default '{}'::text[],
+  cover_image_url text,
   added_by_id uuid references public.crm_users(id) on delete set null,
   added_by_name text not null default 'System',
   added_by_role text not null default 'admin',
@@ -156,6 +164,31 @@ create index if not exists idx_crm_properties_city on public.crm_properties(city
 create index if not exists idx_crm_properties_project_name on public.crm_properties(project_name);
 
 alter table public.crm_properties enable row level security;
+
+-- 5. Tasks (HubSpot-style typed work items; follow-ups live here too)
+create table if not exists public.crm_tasks (
+  id uuid primary key default gen_random_uuid(),
+  lead_id uuid not null references public.crm_leads(id) on delete cascade,
+  title text not null,
+  description text not null default '',
+  task_type text not null default 'todo'
+    check (task_type in ('follow_up', 'call', 'email', 'todo', 'meeting')),
+  status text not null default 'open' check (status in ('open', 'closed')),
+  due_at timestamptz not null,
+  assigned_to uuid references public.crm_users(id) on delete set null,
+  created_by uuid references public.crm_users(id) on delete set null,
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_crm_tasks_lead_id on public.crm_tasks(lead_id);
+create index if not exists idx_crm_tasks_assigned_to on public.crm_tasks(assigned_to);
+create index if not exists idx_crm_tasks_status_due on public.crm_tasks(status, due_at);
+create index if not exists idx_crm_tasks_due_at on public.crm_tasks(due_at);
+create index if not exists idx_crm_tasks_task_type on public.crm_tasks(task_type);
+
+alter table public.crm_tasks enable row level security;
 
 -- Seed CRM users (+ Auth) via the reset migration only:
 --   supabase/migrations/20261112135000_reset_and_create_crm_schema.sql

@@ -6,16 +6,16 @@ export function Logo({
   inverted = false,
 }: {
   className?: string;
-  /** Recolour black ink to white so the lockup stays readable on dark bands. Red is preserved. */
+  /** Use the white-ink lockup for dark bands (reliable on mobile; red is preserved). */
   inverted?: boolean;
 }) {
   return (
     <img
-      src="/brand/RC_Logo.svg"
+      src={inverted ? "/brand/RC_Logo_on_dark.svg" : "/brand/RC_Logo.svg"}
       alt="RealtyCook"
       width={1311}
       height={500}
-      className={cn("h-14 w-auto", inverted && "logo-on-dark", className)}
+      className={cn("h-14 w-auto", className)}
     />
   );
 }
@@ -32,12 +32,12 @@ export function Mark({
 }) {
   return (
     <img
-      src="/brand/RC_FavIcon.svg"
+      src={inverted ? "/brand/RC_FavIcon_on_dark.svg" : "/brand/RC_FavIcon.svg"}
       alt={label ?? ""}
       width={325}
       height={297}
       aria-hidden={label ? undefined : true}
-      className={cn("w-auto", inverted && "logo-on-dark", className)}
+      className={cn("w-auto", className)}
     />
   );
 }

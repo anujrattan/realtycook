@@ -8,7 +8,7 @@ import {
   buildWhatsAppUrl,
   formatShortDate,
   formatSiteVisit,
-  isFollowupOverdue,
+  isDueOverdue,
   PILLAR_LABELS,
   stageReasonLabel,
   STAGES,
@@ -165,7 +165,7 @@ export function CrmPipelineBoard({
                   {stageLeads.map((lead) => {
                     const assignee = users.find((u) => u.id === lead.assigned_to);
                     const isSelected = lead.id === selectedLeadId;
-                    const overdue = isFollowupOverdue(lead.next_followup_at, nowMs);
+                    const overdue = isDueOverdue(lead.next_task_due_at, nowMs);
                     return (
                       <div
                         key={lead.id}
@@ -244,7 +244,7 @@ export function CrmPipelineBoard({
                             )}
                           >
                             <Clock className="size-3" />
-                            {formatShortDate(lead.next_followup_at)}
+                            {formatShortDate(lead.next_task_due_at)}
                           </span>
                           <a
                             href={buildWhatsAppUrl(lead.phone, lead.name, lead.pillar, actor.name)}
@@ -281,7 +281,7 @@ export function CrmPipelineBoard({
                 <th className="p-3.5">Requirement</th>
                 <th className="p-3.5">Stage</th>
                 <th className="p-3.5">Assigned To</th>
-                <th className="p-3.5">Next Follow-Up</th>
+                <th className="p-3.5">Next task</th>
                 <th className="p-3.5 text-right">WhatsApp</th>
               </tr>
             </thead>
@@ -289,7 +289,7 @@ export function CrmPipelineBoard({
               {filteredLeads.map((lead) => {
                 const assignee = users.find((u) => u.id === lead.assigned_to);
                 const stageObj = STAGES.find((s) => s.id === lead.stage) ?? STAGES[0];
-                const overdue = isFollowupOverdue(lead.next_followup_at, nowMs);
+                const overdue = isDueOverdue(lead.next_task_due_at, nowMs);
                 return (
                   <tr
                     key={lead.id}
@@ -320,7 +320,7 @@ export function CrmPipelineBoard({
                       {assignee ? `${assignee.name} (${assignee.role})` : "Unassigned"}
                     </td>
                     <td className={cn("p-3.5 tabular-nums", overdue ? "font-semibold text-brand-red" : "text-ink/75")}>
-                      {formatShortDate(lead.next_followup_at)}
+                      {formatShortDate(lead.next_task_due_at)}
                     </td>
                     <td className="p-3.5 text-right">
                       <a

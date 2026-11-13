@@ -2,7 +2,7 @@
 
 import type { CrmLead, CrmLeadComment, CrmTask, CrmUser } from "@/lib/crm-store";
 import { cn } from "@/lib/utils";
-import { formatShortDate, formatSiteVisit, isFollowupOverdue, STAGES } from "@/components/crm/crm-shared";
+import { formatShortDate, formatSiteVisit, isDueOverdue, STAGES } from "@/components/crm/crm-shared";
 
 export type CrmDashboardPanelProps = {
   missedTasks: CrmTask[];
@@ -106,21 +106,21 @@ export function CrmDashboardPanel({
                   <th className="p-2.5">Client</th>
                   <th className="p-2.5">Assignee</th>
                   <th className="p-2.5">Stage</th>
-                  <th className="p-2.5">Next due</th>
+                  <th className="p-2.5">Next task</th>
                   <th className="p-2.5">Site Visit</th>
                 </tr>
               </thead>
               <tbody>
                 {leads.map((lead) => {
                   const assignee = users.find((u) => u.id === lead.assigned_to);
-                  const overdue = isFollowupOverdue(lead.next_followup_at, nowMs);
+                  const overdue = isDueOverdue(lead.next_task_due_at, nowMs);
                   return (
                     <tr key={lead.id} className="border-b border-border/60">
                       <td className="p-2.5 font-semibold">{lead.name}</td>
                       <td className="p-2.5">{assignee?.name ?? "Unassigned"}</td>
                       <td className="p-2.5">{STAGES.find((s) => s.id === lead.stage)?.label}</td>
                       <td className={cn("p-2.5", overdue && "font-semibold text-brand-red")}>
-                        {formatShortDate(lead.next_followup_at)}
+                        {formatShortDate(lead.next_task_due_at)}
                       </td>
                       <td className="p-2.5">
                         {lead.site_visit_date
