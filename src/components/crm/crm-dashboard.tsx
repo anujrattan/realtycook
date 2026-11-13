@@ -146,8 +146,16 @@ export function CrmDashboard({
     return snapshot.users;
   }, [snapshot.users, actor]);
 
+  const visibleLeads = useMemo(() => {
+    // Only superadmins see every lead. Everyone else sees unassigned + assigned-to-me.
+    if (actor?.role === "superadmin") return snapshot.leads;
+    return snapshot.leads.filter(
+      (lead) => lead.assigned_to === null || lead.assigned_to === actor?.id,
+    );
+  }, [snapshot.leads, actor]);
+
   const filteredLeads = useMemo(() => {
-    return snapshot.leads.filter((lead) => {
+    return visibleLeads.filter((lead) => {
       if (assigneeFilter === "mine" && lead.assigned_to !== actor?.id) return false;
       if (assigneeFilter === "unassigned" && lead.assigned_to !== null) return false;
       if (search.trim()) {
@@ -161,7 +169,7 @@ export function CrmDashboard({
       }
       return true;
     });
-  }, [snapshot.leads, assigneeFilter, search, actor]);
+  }, [visibleLeads, assigneeFilter, search, actor]);
 
   const myTasks = useMemo(() => {
     if (!actor || nowMs === null) {
@@ -175,7 +183,7 @@ export function CrmDashboard({
     }
     const tasks = snapshot.tasks ?? [];
     const scoped =
-      actor.role === "superadmin" || actor.role === "admin"
+      actor.role === "superadmin"
         ? tasks
         : tasks.filter((t) => t.assigned_to === actor.id || t.created_by === actor.id);
 
@@ -231,8 +239,8 @@ export function CrmDashboard({
   }, [myTasks.missed, myTasks.today, handledTaskKeys, snapshot.leads]);
 
   const selectedLead: CrmLead | null = useMemo(
-    () => snapshot.leads.find((l) => l.id === selectedLeadId) ?? null,
-    [snapshot.leads, selectedLeadId],
+    () => visibleLeads.find((l) => l.id === selectedLeadId) ?? null,
+    [visibleLeads, selectedLeadId],
   );
 
   const selectedProperty: CrmProperty | null = useMemo(
@@ -365,6 +373,12 @@ export function CrmDashboard({
       setActiveTab("dashboard");
     }
   }, [activeTab, actor]);
+
+  useEffect(() => {
+    if (selectedLeadId && !visibleLeads.some((l) => l.id === selectedLeadId)) {
+      setSelectedLeadId(null);
+    }
+  }, [selectedLeadId, visibleLeads]);
 
   function markFollowupHandled(lead: CrmLead | null | undefined) {
     if (!lead?.next_followup_at) return;
@@ -1202,7 +1216,7 @@ export function CrmDashboard({
         }}
         showUserManagement={canManageUsers(actor)}
         counts={{
-          pipeline: snapshot.leads.length,
+          pipeline: visibleLeads.length,
           followups: myTasks.today.length + myTasks.missed.length,
           inventory: snapshot.properties.length,
           team: snapshot.users.length,
@@ -1280,7 +1294,7 @@ export function CrmDashboard({
               taskBucket={taskBucket}
               setTaskBucket={setTaskBucket}
               nowMs={nowMs}
-              leads={snapshot.leads}
+              leads={visibleLeads}
               users={snapshot.users}
               actor={actor}
               busy={busy}
@@ -1327,7 +1341,7 @@ export function CrmDashboard({
                   ? "Latest comments and updates across the whole team."
                   : "Your latest comments, stage moves, and notes."
               }
-              leads={snapshot.leads}
+              leads={visibleLeads}
               users={snapshot.users}
               nowMs={nowMs}
               onReviewLead={(leadId) => {

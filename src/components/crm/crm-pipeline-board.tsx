@@ -74,7 +74,10 @@ export function CrmPipelineBoard({
           <div className="flex items-center gap-1 rounded-xl bg-cream p-1">
             {(
               [
-                { id: "all", label: "All Leads" },
+                {
+                  id: "all",
+                  label: actor.role === "superadmin" ? "All Leads" : "Mine + Unassigned",
+                },
                 { id: "mine", label: "Assigned to Me" },
                 { id: "unassigned", label: "Unassigned" },
               ] as const
