@@ -27,13 +27,6 @@ export function CrmDashboardPanel({
 }: CrmDashboardPanelProps) {
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-ink">Dashboard</h2>
-        <p className="mt-1 text-xs text-ink/55">
-          Missed tasks, recent activity, and a snapshot of every lead in the pipeline.
-        </p>
-      </div>
-
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
           <h3 className="text-lg font-bold text-ink">Missed Tasks</h3>

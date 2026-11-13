@@ -8,6 +8,11 @@ import {
   CrmNewLeadModal,
   CrmStageReasonModal,
 } from "@/components/crm/crm-action-modals";
+import {
+  CrmProfileModal,
+  profileFormFromUser,
+  type ProfileFormState,
+} from "@/components/crm/crm-profile-modal";
 import { parseBulkLeadFile, type BulkLeadRow } from "@/lib/crm-bulk-import";
 import { CrmDashboardPanel } from "@/components/crm/crm-dashboard-panel";
 import { CrmFollowupToast } from "@/components/crm/crm-followup-toast";
@@ -94,6 +99,15 @@ export function CrmDashboard({
   const [showNewLead, setShowNewLead] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [showAddProperty, setShowAddProperty] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState<ProfileFormState>({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    address: "",
+    avatarUrl: null,
+  });
   const [pendingStageChange, setPendingStageChange] = useState<{
     leadId: string;
     targetStage: LeadStage;
@@ -802,13 +816,19 @@ export function CrmDashboard({
         setBannerError("Only Superadmin can create another Superadmin.");
         return false;
       }
+      const fullName = String(body.name ?? "").trim();
+      const nameParts = fullName.split(/\s+/);
       saveLocalSnapshot({
         ...snapshot,
         users: [
           ...snapshot.users,
           {
             id: newCrmId(),
-            name: String(body.name ?? "").trim(),
+            name: fullName,
+            first_name: nameParts[0] || "",
+            last_name: nameParts.slice(1).join(" "),
+            address: "",
+            avatar_url: null,
             email: String(body.email ?? "").trim().toLowerCase(),
             phone: String(body.phone ?? "").replace(/\D/g, ""),
             role,
@@ -818,6 +838,48 @@ export function CrmDashboard({
           },
         ],
       });
+      return true;
+    }
+
+    if (action === "update_profile") {
+      const firstName = String(body.firstName ?? "").trim();
+      const lastName = String(body.lastName ?? "").trim();
+      if (!firstName) {
+        setBannerError("First name is required.");
+        return false;
+      }
+      const email = String(body.email ?? "").trim().toLowerCase();
+      const phoneRaw = String(body.phone ?? "").replace(/\D/g, "");
+      if (!email.includes("@") || phoneRaw.length < 10) {
+        setBannerError("Valid email and phone are required.");
+        return false;
+      }
+      const phone = phoneRaw.length === 10 ? `91${phoneRaw}` : phoneRaw;
+      const name = [firstName, lastName].filter(Boolean).join(" ");
+      const avatarUrl =
+        body.avatarUrl === undefined
+          ? undefined
+          : body.avatarUrl === null
+            ? null
+            : String(body.avatarUrl);
+      saveLocalSnapshot({
+        ...snapshot,
+        users: snapshot.users.map((u) =>
+          u.id === actor.id
+            ? {
+                ...u,
+                first_name: firstName,
+                last_name: lastName,
+                name,
+                email,
+                phone,
+                address: String(body.address ?? "").trim(),
+                ...(avatarUrl !== undefined ? { avatar_url: avatarUrl } : {}),
+              }
+            : u,
+        ),
+      });
+      setBannerSuccess("Profile updated.");
       return true;
     }
 
@@ -1235,6 +1297,12 @@ export function CrmDashboard({
           }}
           onBulkUpload={() => setShowBulkUpload(true)}
           onNewLead={() => setShowNewLead(true)}
+          onOpenProfile={() => {
+            if (actor) {
+              setProfileForm(profileFormFromUser(actor));
+              setShowProfile(true);
+            }
+          }}
         />
 
         {(bannerError || bannerSuccess) && (
@@ -1472,6 +1540,35 @@ export function CrmDashboard({
         onClose={() => setPendingStageChange(null)}
         onConfirm={handleStageReason}
       />
+
+      {actor ? (
+        <CrmProfileModal
+          open={showProfile}
+          busy={busy}
+          user={actor}
+          form={profileForm}
+          setForm={setProfileForm}
+          onClose={() => setShowProfile(false)}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void (async () => {
+              const ok = await postCrmAction({
+                action: "update_profile",
+                firstName: profileForm.firstName,
+                lastName: profileForm.lastName,
+                email: profileForm.email,
+                phone: profileForm.phone,
+                address: profileForm.address,
+                avatarUrl: profileForm.avatarUrl,
+              });
+              if (ok) {
+                setBannerSuccess("Profile updated.");
+                setShowProfile(false);
+              }
+            })();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

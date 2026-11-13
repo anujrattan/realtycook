@@ -157,13 +157,33 @@ export type LeadIntent = "buy" | "sell" | "invest" | "lease";
 export interface CrmUser {
   id: string;
   name: string;
+  first_name?: string;
+  last_name?: string;
   email: string;
   phone: string;
+  address?: string;
+  avatar_url?: string | null;
   role: UserRole;
   designation: string;
   active: boolean;
   created_at: string;
   must_reset_password?: boolean;
+}
+
+export function userDisplayName(user: Pick<CrmUser, "name" | "first_name" | "last_name">) {
+  const composed = [user.first_name, user.last_name].filter((p) => Boolean(p && String(p).trim())).join(" ").trim();
+  return composed || user.name || "User";
+}
+
+export function userInitials(user: Pick<CrmUser, "name" | "first_name" | "last_name">) {
+  const first = (user.first_name || user.name.split(/\s+/)[0] || "").trim();
+  const last = (
+    user.last_name ||
+    user.name.split(/\s+/).slice(1).join(" ") ||
+    ""
+  ).trim();
+  const initials = `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+  return initials || (user.name.charAt(0) || "?").toUpperCase();
 }
 
 export interface CrmLeadComment {
@@ -250,6 +270,10 @@ const SEED_USERS: CrmUser[] = [
   {
     id: "6605a758-8ee3-470d-ad64-14865ddae023",
     name: "Anuj Rattan",
+    first_name: "Anuj",
+    last_name: "Rattan",
+    address: "",
+    avatar_url: null,
     email: "rattan.anuj@gmail.com",
     phone: "918558887123",
     role: "superadmin",
@@ -260,6 +284,10 @@ const SEED_USERS: CrmUser[] = [
   {
     id: "4eb4d5ac-6d70-4774-935f-006ee270b58d",
     name: "Sahil Vaid",
+    first_name: "Sahil",
+    last_name: "Vaid",
+    address: "",
+    avatar_url: null,
     email: "realtycookadmin@gmail.com",
     phone: "917986000813",
     role: "superadmin",
@@ -270,6 +298,10 @@ const SEED_USERS: CrmUser[] = [
   {
     id: "1e5c864f-af1d-4349-a4b3-f63946decdba",
     name: "Karan Yadav",
+    first_name: "Karan",
+    last_name: "Yadav",
+    address: "",
+    avatar_url: null,
     email: "karanrealtycook@gmail.com",
     phone: "919056050813",
     role: "sales",
@@ -280,6 +312,10 @@ const SEED_USERS: CrmUser[] = [
   {
     id: "83949b21-3a79-4927-b645-101c5bbce73c",
     name: "Ishan Kaushal",
+    first_name: "Ishan",
+    last_name: "Kaushal",
+    address: "",
+    avatar_url: null,
     email: "ishanrealtycook@gmail.com",
     phone: "919056060813",
     role: "sales",
@@ -290,6 +326,10 @@ const SEED_USERS: CrmUser[] = [
   {
     id: "b7e2c914-6a5f-4d8e-9c1b-3f8a0d2e5c71",
     name: "Baljinder Kaur",
+    first_name: "Baljinder",
+    last_name: "Kaur",
+    address: "",
+    avatar_url: null,
     email: "realtycookbaljinder@gmail.com",
     phone: "919056030813",
     role: "sales",
@@ -1408,10 +1448,17 @@ export async function addCrmUserWithRbac(params: {
 
   if (cfg.enabled) {
     try {
+      const nameParts = params.name.trim().split(/\s+/);
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ");
       const inserted = await sbFetch<CrmUser[]>("crm_users", {
         method: "POST",
         body: JSON.stringify({
           name: params.name.trim(),
+          first_name: firstName,
+          last_name: lastName,
+          address: "",
+          avatar_url: null,
           email: params.email.trim().toLowerCase(),
           phone: normalizedPhone,
           role: params.role,
@@ -1426,9 +1473,16 @@ export async function addCrmUserWithRbac(params: {
   }
 
   const mem = getMemoryStore();
+  const nameParts = params.name.trim().split(/\s+/);
+  const firstName = nameParts[0] || "";
+  const lastName = nameParts.slice(1).join(" ");
   const newUser: CrmUser = {
     id: newCrmId(),
     name: params.name.trim(),
+    first_name: firstName,
+    last_name: lastName,
+    address: "",
+    avatar_url: null,
     email: params.email.trim().toLowerCase(),
     phone: normalizedPhone,
     role: params.role,
@@ -1646,6 +1700,105 @@ export async function getCrmUserById(userId: string): Promise<CrmUser | null> {
     }
   }
   return getMemoryStore().users.find((u) => u.id === userId) ?? null;
+}
+
+export async function updateCrmUserProfile(params: {
+  actorId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: string;
+  /** Pass `undefined` to leave avatar unchanged; `null` to clear. */
+  avatarUrl?: string | null;
+}): Promise<{ ok: true; user: CrmUser } | { ok: false; error: string }> {
+  const snap = await getCrmSnapshot();
+  const actor = snap.users.find((u) => u.id === params.actorId);
+  if (!actor) return { ok: false, error: "Unauthorized actor." };
+
+  const firstName = params.firstName.trim();
+  const lastName = params.lastName.trim();
+  if (!firstName) return { ok: false, error: "First name is required." };
+
+  const email = params.email.trim().toLowerCase();
+  if (!email || !email.includes("@")) return { ok: false, error: "A valid email is required." };
+
+  const cleanPhone = params.phone.replace(/\D/g, "");
+  if (cleanPhone.length < 10) return { ok: false, error: "A valid phone number is required." };
+  const phone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+
+  const address = params.address.trim();
+  let avatarUrl: string | null | undefined = params.avatarUrl;
+  if (avatarUrl !== undefined && avatarUrl !== null) {
+    const trimmed = avatarUrl.trim();
+    if (!trimmed) {
+      avatarUrl = null;
+    } else if (trimmed.length > 350_000) {
+      return { ok: false, error: "Profile picture is too large. Use a smaller image." };
+    } else if (!trimmed.startsWith("data:image/") && !trimmed.startsWith("https://")) {
+      return { ok: false, error: "Invalid profile picture." };
+    } else {
+      avatarUrl = trimmed;
+    }
+  }
+
+  const name = [firstName, lastName].filter(Boolean).join(" ");
+  const patch: Record<string, unknown> = {
+    first_name: firstName,
+    last_name: lastName,
+    name,
+    email,
+    phone,
+    address,
+  };
+  if (avatarUrl !== undefined) {
+    patch.avatar_url = avatarUrl;
+  }
+
+  const cfg = getSupabaseConfig();
+  if (cfg.enabled) {
+    try {
+      const updated = await sbFetch<CrmUser[]>(
+        `crm_users?id=eq.${encodeURIComponent(params.actorId)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(patch),
+        },
+      );
+      if (updated[0]) {
+        try {
+          const { createClient } = await import("@supabase/supabase-js");
+          const admin = createClient(cfg.url, cfg.key, {
+            auth: { persistSession: false, autoRefreshToken: false },
+          });
+          const { error } = await admin.auth.admin.updateUserById(params.actorId, {
+            email,
+            user_metadata: {
+              first_name: firstName,
+              last_name: lastName,
+              full_name: name,
+              phone,
+              address,
+            },
+          });
+          if (error) {
+            console.warn("[crm-store] auth profile sync warning:", error.message);
+          }
+        } catch (err) {
+          console.warn("[crm-store] auth profile sync failed:", err);
+        }
+        return { ok: true, user: updated[0] };
+      }
+    } catch (err) {
+      console.warn("[crm-store] Supabase profile update failed, using memory store:", err);
+    }
+  }
+
+  const mem = getMemoryStore();
+  const idx = mem.users.findIndex((u) => u.id === params.actorId);
+  if (idx < 0) return { ok: false, error: "User not found." };
+  mem.users[idx] = { ...mem.users[idx], ...patch };
+  return { ok: true, user: mem.users[idx] };
 }
 
 /** Clear first-login reset flag in CRM + auth app_metadata (service role). */

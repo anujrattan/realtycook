@@ -18,6 +18,7 @@ import {
   updateCrmLead,
   updateCrmProperty,
   updateCrmTask,
+  updateCrmUserProfile,
   updateLeadStageOrFollowup,
 } from "@/lib/crm-store";
 
@@ -295,6 +296,28 @@ export async function POST(request: Request) {
     }
     const snapshot = await getCrmSnapshot();
     return NextResponse.json({ ok: true, snapshot });
+  }
+
+  if (action === "update_profile") {
+    const result = await updateCrmUserProfile({
+      actorId,
+      firstName: String(payload.firstName ?? ""),
+      lastName: String(payload.lastName ?? ""),
+      email: String(payload.email ?? ""),
+      phone: String(payload.phone ?? ""),
+      address: String(payload.address ?? ""),
+      avatarUrl:
+        payload.avatarUrl === undefined
+          ? undefined
+          : payload.avatarUrl === null
+            ? null
+            : String(payload.avatarUrl),
+    });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 422 });
+    }
+    const snapshot = await getCrmSnapshot();
+    return NextResponse.json({ ok: true, user: result.user, snapshot });
   }
 
   if (action === "create_task") {
