@@ -1011,7 +1011,7 @@ export function CrmDashboard({
     },
     inventory: {
       title: "Verified Inventory",
-      subtitle: "Inventory Master units — filter, switch card/list view, expand a row for full details.",
+      subtitle: "Inventory Master units — list view by default; filter or switch to cards, expand a row for full details.",
     },
     team: {
       title: "User Management",

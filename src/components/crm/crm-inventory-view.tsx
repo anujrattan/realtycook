@@ -56,11 +56,25 @@ function FilterSelect({
   );
 }
 
+function locationPrimary(prop: CrmProperty) {
+  const inv = propertyInventory(prop);
+  return inv?.city || prop.locality || "—";
+}
+
+function locationSecondary(prop: CrmProperty) {
+  const inv = propertyInventory(prop);
+  const locality = inv?.locality_area || (inv?.city ? prop.locality : "");
+  if (!locality) return null;
+  // Avoid repeating the same value under the city line.
+  if (locality.trim().toLowerCase() === String(inv?.city || "").trim().toLowerCase()) return null;
+  return locality;
+}
+
 function CollapsedMeta({ prop }: { prop: CrmProperty }) {
   const inv = propertyInventory(prop);
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
-      {[inv?.configuration, inv?.possession_status, inv?.furnishing_status, inv?.city]
+      {[inv?.configuration, inv?.expected_possession_date, inv?.furnishing_status, inv?.property_type]
         .filter(Boolean)
         .map((chip) => (
           <span
@@ -81,7 +95,7 @@ export function CrmInventoryView({
   canManageInventory,
   onAddProperty,
 }: CrmInventoryViewProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [filters, setFilters] = useState<InventoryFilters>(EMPTY_INVENTORY_FILTERS);
 
   const cities = useMemo(() => uniqueInventoryValues(properties, "city"), [properties]);
@@ -218,6 +232,7 @@ export function CrmInventoryView({
           {filtered.map((prop) => {
             const selected = selectedPropertyId === prop.id;
             const inv = propertyInventory(prop);
+            const localityLine = locationSecondary(prop);
             return (
               <button
                 key={prop.id}
@@ -237,7 +252,8 @@ export function CrmInventoryView({
                   </span>
                 </div>
                 <h3 className="mt-3 text-lg font-bold text-ink">{propertyProjectName(prop)}</h3>
-                <p className="mt-1 text-xs font-medium text-ink/55">{prop.locality}</p>
+                <p className="mt-1 text-xs font-medium text-ink/55">{locationPrimary(prop)}</p>
+                {localityLine ? <p className="text-[11px] text-ink/45">{localityLine}</p> : null}
                 <CollapsedMeta prop={prop} />
                 <div className="mt-4 flex items-end justify-between gap-3 border-t border-border pt-3">
                   <div>
@@ -260,17 +276,18 @@ export function CrmInventoryView({
               <thead className="border-b border-border bg-cream/50 text-[10px] font-semibold tracking-[0.12em] text-ink/45 uppercase">
                 <tr>
                   <th className="px-4 py-3">Project</th>
-                  <th className="px-4 py-3">City</th>
+                  <th className="px-4 py-3">Location</th>
                   <th className="px-4 py-3">Config</th>
                   <th className="px-4 py-3">Possession</th>
                   <th className="px-4 py-3">Price</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Property Type</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((prop) => {
                   const selected = selectedPropertyId === prop.id;
                   const inv = propertyInventory(prop);
+                  const localityLine = locationSecondary(prop);
                   return (
                     <tr
                       key={prop.id}
@@ -284,15 +301,14 @@ export function CrmInventoryView({
                         <p className="font-semibold text-ink">{propertyProjectName(prop)}</p>
                         <p className="text-xs text-ink/50">{inv?.developer_name || propertySummary(prop)}</p>
                       </td>
-                      <td className="px-4 py-3 text-ink/75">{inv?.city || "—"}</td>
-                      <td className="px-4 py-3 text-ink/75">{inv?.configuration || "—"}</td>
-                      <td className="px-4 py-3 text-ink/75">{inv?.possession_status || "—"}</td>
-                      <td className="px-4 py-3 font-semibold tabular-nums text-ink">{prop.price_label}</td>
                       <td className="px-4 py-3">
-                        <span className="rounded-full bg-emerald-500/12 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">
-                          {prop.verification_badge}
-                        </span>
+                        <p className="text-ink/75">{locationPrimary(prop)}</p>
+                        {localityLine ? <p className="text-xs text-ink/50">{localityLine}</p> : null}
                       </td>
+                      <td className="px-4 py-3 text-ink/75">{inv?.configuration || "—"}</td>
+                      <td className="px-4 py-3 text-ink/75">{inv?.expected_possession_date || "—"}</td>
+                      <td className="px-4 py-3 font-semibold tabular-nums text-ink">{prop.price_label}</td>
+                      <td className="px-4 py-3 text-ink/75">{inv?.property_type || "—"}</td>
                     </tr>
                   );
                 })}
