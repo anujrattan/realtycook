@@ -25,6 +25,15 @@ export function canManageInventory(
   return designation === "svp sales";
 }
 
+/** User Management nav + account CRUD: Superadmin and Admin only. */
+export function canManageUsers(
+  actor: { role?: UserRole | null } | UserRole | null | undefined,
+) {
+  if (actor == null) return false;
+  const role = typeof actor === "string" ? actor : actor.role;
+  return role === "superadmin" || role === "admin";
+}
+
 /** Always generate a UUID so memory-store IDs stay compatible with Supabase uuid columns. */
 export function newCrmId() {
   return crypto.randomUUID();

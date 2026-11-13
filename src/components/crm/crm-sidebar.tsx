@@ -24,6 +24,7 @@ export function CrmSidebar({
   activeNav,
   onNavigate,
   counts,
+  showUserManagement = false,
 }: {
   activeNav: CrmNavId;
   onNavigate: (id: CrmNavId) => void;
@@ -34,6 +35,7 @@ export function CrmSidebar({
     team: number;
     missed: number;
   };
+  showUserManagement?: boolean;
 }) {
   const items: NavItem[] = [
     {
@@ -64,13 +66,17 @@ export function CrmSidebar({
       icon: Building2,
       count: counts.inventory,
     },
-    {
-      id: "team",
-      label: "User Management",
-      hint: "Accounts & permissions",
-      icon: Users,
-      count: counts.team,
-    },
+    ...(showUserManagement
+      ? ([
+          {
+            id: "team",
+            label: "User Management",
+            hint: "Accounts & permissions",
+            icon: Users,
+            count: counts.team,
+          },
+        ] satisfies NavItem[])
+      : []),
   ];
 
   return (

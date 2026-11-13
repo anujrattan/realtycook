@@ -35,6 +35,7 @@ import { CrmTopbar } from "@/components/crm/crm-topbar";
 import { suggestInventoryForLead } from "@/lib/crm-inventory";
 import {
   canManageInventory,
+  canManageUsers,
   newCrmId,
   type CrmLead,
   CrmProperty,
@@ -323,6 +324,12 @@ export function CrmDashboard({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedLeadId, selectedPropertyId]);
+
+  useEffect(() => {
+    if (activeTab === "team" && !canManageUsers(actor)) {
+      setActiveTab("dashboard");
+    }
+  }, [activeTab, actor]);
 
   function markFollowupHandled(lead: CrmLead | null | undefined) {
     if (!lead?.next_followup_at) return;
@@ -922,31 +929,45 @@ export function CrmDashboard({
     setSelectedLeadId(lead.id);
   }
 
-  async function handleStageReason(reason: StageReason) {
+  async function handleStageReason(reason: StageReason, discussion: string) {
     if (!pendingStageChange) return;
     const option = getStageReasonOption(reason);
     if (!option) return;
+    const note = discussion.trim();
+    if (!note) {
+      setBannerError("Add a discussion summary before saving.");
+      return;
+    }
 
     const nextFollowupAt = option.schedulesFollowup
       ? new Date(Date.now() + 24 * 3600 * 1000).toISOString()
       : undefined;
+    const leadId = pendingStageChange.leadId;
 
     const ok = await postCrmAction({
       action: "update_stage",
-      leadId: pendingStageChange.leadId,
+      leadId,
       stage: option.resultsIn,
       closureReason: reason,
       ...(nextFollowupAt ? { nextFollowupAt } : {}),
     });
-    if (ok) {
-      setSelectedLeadId(pendingStageChange.leadId);
-      setPendingStageChange(null);
-      setBannerSuccess(
-        option.schedulesFollowup
-          ? "Call outcome saved. Follow-up set for tomorrow."
-          : "Status and reason saved.",
-      );
-    }
+    if (!ok) return;
+
+    const commentBody = `${option.label}\n\n${note}`;
+    await postCrmAction({
+      action: "add_comment",
+      leadId,
+      body: commentBody,
+      ...(nextFollowupAt ? { nextFollowupAt } : {}),
+    });
+
+    setSelectedLeadId(leadId);
+    setPendingStageChange(null);
+    setBannerSuccess(
+      option.schedulesFollowup
+        ? "Call outcome saved to the timeline. Follow-up set for tomorrow."
+        : "Status and discussion saved to the timeline.",
+    );
   }
 
   async function parseBulkFile(file: File) {
@@ -1027,7 +1048,11 @@ export function CrmDashboard({
     <div className="flex min-h-svh bg-cream text-ink">
       <CrmSidebar
         activeNav={activeTab}
-        onNavigate={setActiveTab}
+        onNavigate={(id) => {
+          if (id === "team" && !canManageUsers(actor)) return;
+          setActiveTab(id);
+        }}
+        showUserManagement={canManageUsers(actor)}
         counts={{
           pipeline: snapshot.leads.length,
           followups: myFollowups.today.length + myFollowups.missed.length,
@@ -1127,7 +1152,7 @@ export function CrmDashboard({
             />
           )}
 
-          {activeTab === "team" && (
+          {activeTab === "team" && canManageUsers(actor) && (
             <CrmTeamView
               users={snapshot.users}
               leads={snapshot.leads}

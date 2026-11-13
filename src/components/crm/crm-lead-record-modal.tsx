@@ -117,7 +117,10 @@ export function CrmLeadRecordModal({
   async function handleSaveLead(e: React.FormEvent) {
     e.preventDefault();
     const ok = await onSaveLead(form);
-    if (ok) setEditing(false);
+    if (ok) {
+      setEditing(false);
+      onClose();
+    }
   }
 
   return (
@@ -520,88 +523,95 @@ export function CrmLeadRecordModal({
             )}
           </div>
 
-          <div className="flex min-h-0 flex-col overflow-hidden bg-cream/25">
-            <div className="shrink-0 border-b border-border px-8 py-8">
+          <form
+            onSubmit={onSubmitComment}
+            className="flex min-h-0 flex-col overflow-hidden bg-cream/25"
+          >
+            <div className="min-h-0 flex-1 overflow-y-auto px-8 py-8">
               <h3 className="text-sm font-bold text-ink">Activity</h3>
-              <p className="mt-1 text-sm text-ink/55">Log the call or WhatsApp update, then set the next follow-up.</p>
+              <p className="mt-1 text-sm text-ink/55">
+                Optional extra notes and follow-ups. Call outcomes from status changes appear in the timeline
+                below.
+              </p>
 
-              <form onSubmit={onSubmitComment} className="mt-6 space-y-4">
+              <div className="mt-6 space-y-4">
                 <Textarea
                   id="crm-comment"
                   rows={4}
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="What was discussed? Next steps?"
+                  placeholder="Extra information, follow-up context, or internal note…"
                   className="min-h-[110px] resize-none rounded-2xl border-border bg-white text-sm leading-relaxed"
                 />
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                  <div className="flex-1">
-                    <label
-                      htmlFor="crm-followup"
-                      className="block text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase"
-                    >
-                      Next follow-up
-                    </label>
-                    <input
-                      id="crm-followup"
-                      type="datetime-local"
-                      value={followupInput}
-                      onChange={(e) => setFollowupInput(e.target.value)}
-                      className="mt-2 h-11 w-full rounded-2xl border border-border bg-white px-3.5 text-sm text-ink"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={busy || !commentText.trim()}
-                    className="h-11 rounded-2xl bg-ink px-5 text-sm font-semibold text-white hover:bg-brand-red"
+                <div>
+                  <label
+                    htmlFor="crm-followup"
+                    className="block text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase"
                   >
-                    <Send className="size-4" />
-                    Save activity
-                  </Button>
+                    Next follow-up
+                  </label>
+                  <input
+                    id="crm-followup"
+                    type="datetime-local"
+                    value={followupInput}
+                    onChange={(e) => setFollowupInput(e.target.value)}
+                    className="mt-2 h-11 w-full rounded-2xl border border-border bg-white px-3.5 text-sm text-ink"
+                  />
                 </div>
-              </form>
-            </div>
+              </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
-              <p className="text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase">
-                Timeline · {comments.length}
-              </p>
-              <div className="mt-5 space-y-0">
-                {comments.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-border bg-white/60 px-6 py-12 text-center">
-                    <p className="text-sm text-ink/50">No activity yet. Save the first note above.</p>
-                  </div>
-                ) : (
-                  comments.map((c, idx) => (
-                    <div key={c.id} className="relative flex gap-4 pb-8 last:pb-2">
-                      {idx < comments.length - 1 && (
-                        <span className="absolute top-3 left-[11px] h-[calc(100%-12px)] w-px bg-border" />
-                      )}
-                      <span className="relative z-[1] mt-1.5 size-[22px] shrink-0 rounded-full border-[3px] border-white bg-brand-red shadow-2xs" />
-                      <div className="min-w-0 flex-1 rounded-2xl border border-border/70 bg-white px-4 py-3.5">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-sm font-semibold text-ink">
-                            {c.author_name}
-                            <span className="ml-2 text-[10px] font-bold tracking-wide text-ink/35 uppercase">
-                              {c.author_role}
-                            </span>
-                          </p>
-                          <p className="text-xs text-ink/45">{formatShortDate(c.created_at)}</p>
-                        </div>
-                        <p className="mt-2 text-sm leading-relaxed text-ink/75">{c.body}</p>
-                        {c.followup_scheduled_for && (
-                          <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-2.5 py-1 text-[11px] font-semibold text-ink">
-                            <CalendarClock className="size-3" />
-                            Follow-up {formatShortDate(c.followup_scheduled_for)}
-                          </p>
-                        )}
-                      </div>
+              <div className="mt-10">
+                <p className="text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase">
+                  Timeline · {comments.length}
+                </p>
+                <div className="mt-5 space-y-0">
+                  {comments.length === 0 ? (
+                    <div className="rounded-3xl border border-dashed border-border bg-white/60 px-6 py-12 text-center">
+                      <p className="text-sm text-ink/50">No activity yet. Status discussions and notes show up here.</p>
                     </div>
-                  ))
-                )}
+                  ) : (
+                    comments.map((c, idx) => (
+                      <div key={c.id} className="relative flex gap-4 pb-8 last:pb-2">
+                        {idx < comments.length - 1 && (
+                          <span className="absolute top-3 left-[11px] h-[calc(100%-12px)] w-px bg-border" />
+                        )}
+                        <span className="relative z-[1] mt-1.5 size-[22px] shrink-0 rounded-full border-[3px] border-white bg-brand-red shadow-2xs" />
+                        <div className="min-w-0 flex-1 rounded-2xl border border-border/70 bg-white px-4 py-3.5">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-ink">
+                              {c.author_name}
+                              <span className="ml-2 text-[10px] font-bold tracking-wide text-ink/35 uppercase">
+                                {c.author_role}
+                              </span>
+                            </p>
+                            <p className="text-xs text-ink/45">{formatShortDate(c.created_at)}</p>
+                          </div>
+                          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink/75">{c.body}</p>
+                          {c.followup_scheduled_for && (
+                            <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-2.5 py-1 text-[11px] font-semibold text-ink">
+                              <CalendarClock className="size-3" />
+                              Follow-up {formatShortDate(c.followup_scheduled_for)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+
+            <div className="shrink-0 border-t border-border bg-cream/40 px-8 py-4">
+              <Button
+                type="submit"
+                disabled={busy || !commentText.trim()}
+                className="h-11 w-full rounded-2xl bg-ink px-5 text-sm font-semibold text-white hover:bg-brand-red sm:w-auto"
+              >
+                <Send className="size-4" />
+                Save activity
+              </Button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

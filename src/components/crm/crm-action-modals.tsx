@@ -374,7 +374,7 @@ export type CrmStageReasonModalProps = {
   targetStage: LeadStage;
   busy: boolean;
   onClose: () => void;
-  onConfirm: (reason: StageReason) => void;
+  onConfirm: (reason: StageReason, discussion: string) => void;
 };
 
 /** @deprecated Use CrmStageReasonModal */
@@ -389,6 +389,7 @@ export function CrmStageReasonModal({
   onConfirm,
 }: CrmStageReasonModalProps) {
   const [reason, setReason] = useState<StageReason | "">("");
+  const [discussion, setDiscussion] = useState("");
   const options = REASONS_BY_STAGE[targetStage] ?? [];
   const groups = useMemo(() => {
     const map = new Map<string, typeof options>();
@@ -406,17 +407,20 @@ export function CrmStageReasonModal({
   const title = targetStage === "closed" ? "Close lead" : "Call outcome";
   const subtitle =
     targetStage === "closed"
-      ? `Choose why ${leadName} is leaving the active pipeline.`
-      : `How did the call with ${leadName} go? Retry outcomes stay on New with a follow-up.`;
+      ? `Choose why ${leadName} is leaving the active pipeline, then capture the discussion.`
+      : `How did the call with ${leadName} go? Capture the discussion summary — it will appear on the lead timeline.`;
+  const canSave = Boolean(reason) && discussion.trim().length > 0;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/60 p-4 backdrop-blur-xs">
-      <div className="w-full max-w-md rounded-3xl border border-border bg-white p-6 shadow-lift">
-        <p className="text-[11px] font-semibold tracking-[0.14em] text-ink/40 uppercase">{stageLabel}</p>
-        <h2 className="mt-1 text-xl font-bold text-ink">{title}</h2>
-        <p className="mt-2 text-sm text-ink/60">{subtitle}</p>
+      <div className="flex max-h-[min(880px,92vh)] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-border bg-white shadow-lift">
+        <div className="shrink-0 px-6 pt-6">
+          <p className="text-[11px] font-semibold tracking-[0.14em] text-ink/40 uppercase">{stageLabel}</p>
+          <h2 className="mt-1 text-xl font-bold text-ink">{title}</h2>
+          <p className="mt-2 text-sm text-ink/60">{subtitle}</p>
+        </div>
 
-        <div className="mt-5 max-h-[50vh] space-y-4 overflow-y-auto pr-1">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
           {groups.map(([group, items]) => (
             <div key={group}>
               <Label className="text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase">
@@ -444,16 +448,33 @@ export function CrmStageReasonModal({
               </div>
             </div>
           ))}
+
+          <div>
+            <Label
+              htmlFor="stage-discussion"
+              className="text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase"
+            >
+              Discussion summary *
+            </Label>
+            <Textarea
+              id="stage-discussion"
+              rows={4}
+              value={discussion}
+              onChange={(e) => setDiscussion(e.target.value)}
+              placeholder="What was discussed? Any commitments or next steps?"
+              className="mt-2 min-h-[110px] resize-none rounded-2xl border-border bg-white text-sm leading-relaxed"
+            />
+          </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-2">
+        <div className="flex shrink-0 justify-end gap-2 border-t border-border px-6 py-4">
           <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">
             Cancel
           </Button>
           <Button
             type="button"
-            disabled={busy || !reason}
-            onClick={() => reason && onConfirm(reason)}
+            disabled={busy || !canSave}
+            onClick={() => reason && onConfirm(reason, discussion.trim())}
             className="rounded-xl bg-brand-red text-white shadow-red"
           >
             Save
