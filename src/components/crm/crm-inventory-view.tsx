@@ -58,16 +58,17 @@ function FilterSelect({
 
 function locationPrimary(prop: CrmProperty) {
   const inv = propertyInventory(prop);
-  return inv?.city || prop.locality || "—";
+  return inv?.locality_area || prop.locality || inv?.city || "—";
 }
 
 function locationSecondary(prop: CrmProperty) {
   const inv = propertyInventory(prop);
-  const locality = inv?.locality_area || (inv?.city ? prop.locality : "");
-  if (!locality) return null;
-  // Avoid repeating the same value under the city line.
-  if (locality.trim().toLowerCase() === String(inv?.city || "").trim().toLowerCase()) return null;
-  return locality;
+  const city = inv?.city || "";
+  if (!city) return null;
+  // Avoid repeating the same value under the locality line.
+  const primary = String(inv?.locality_area || prop.locality || "").trim().toLowerCase();
+  if (city.trim().toLowerCase() === primary) return null;
+  return city;
 }
 
 function CollapsedMeta({ prop }: { prop: CrmProperty }) {

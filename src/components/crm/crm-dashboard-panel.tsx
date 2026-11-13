@@ -1,13 +1,14 @@
 "use client";
 
-import type { CrmLead, CrmLeadComment, CrmUser } from "@/lib/crm-store";
+import type { CrmLead, CrmLeadComment, CrmTask, CrmUser } from "@/lib/crm-store";
 import { cn } from "@/lib/utils";
 import { formatShortDate, formatSiteVisit, isFollowupOverdue, STAGES } from "@/components/crm/crm-shared";
-import type { MyFollowupsBuckets } from "@/components/crm/crm-followups-view";
 
 export type CrmDashboardPanelProps = {
-  myFollowups: Pick<MyFollowupsBuckets, "missed">;
+  missedTasks: CrmTask[];
   recentActivity: CrmLeadComment[];
+  recentActivityTitle: string;
+  recentActivitySubtitle: string;
   leads: CrmLead[];
   users: CrmUser[];
   nowMs: number | null;
@@ -15,8 +16,10 @@ export type CrmDashboardPanelProps = {
 };
 
 export function CrmDashboardPanel({
-  myFollowups,
+  missedTasks,
   recentActivity,
+  recentActivityTitle,
+  recentActivitySubtitle,
   leads,
   users,
   nowMs,
@@ -27,37 +30,41 @@ export function CrmDashboardPanel({
       <div>
         <h2 className="text-xl font-bold text-ink">Dashboard</h2>
         <p className="mt-1 text-xs text-ink/55">
-          Team-wide missed follow-ups, recent activity, and a snapshot of every lead in the pipeline.
+          Missed tasks, recent activity, and a snapshot of every lead in the pipeline.
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
-          <h3 className="text-lg font-bold text-ink">Missed Follow-Ups Across Team</h3>
-          <p className="mt-1 text-xs text-ink/55">Highlighted in red — these callbacks slipped past their scheduled time.</p>
+          <h3 className="text-lg font-bold text-ink">Missed Tasks</h3>
+          <p className="mt-1 text-xs text-ink/55">
+            Highlighted in red — these tasks slipped past their end date.
+          </p>
           <div className="mt-4 space-y-2">
-            {myFollowups.missed.length === 0 ? (
+            {missedTasks.length === 0 ? (
               <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-ink/50">
-                No missed follow-ups. Team is on track.
+                No missed tasks. You&apos;re on track.
               </p>
             ) : (
-              myFollowups.missed.map((lead) => {
-                const assignee = users.find((u) => u.id === lead.assigned_to);
+              missedTasks.map((task) => {
+                const lead = leads.find((l) => l.id === task.lead_id);
+                const assignee = users.find((u) => u.id === task.assigned_to);
                 return (
                   <div
-                    key={lead.id}
+                    key={task.id}
                     className="flex items-center justify-between gap-3 rounded-xl border border-brand-red/25 bg-brand-red-soft/50 p-3 text-xs"
                   >
-                    <div>
-                      <p className="font-semibold text-ink">{lead.name}</p>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-ink">{task.title}</p>
                       <p className="text-brand-red-deep">
-                        Due {formatShortDate(lead.next_followup_at)} · {assignee?.name ?? "Unassigned"}
+                        Due {formatShortDate(task.due_at)} · {lead?.name ?? "Lead"} ·{" "}
+                        {assignee?.name ?? "Unassigned"}
                       </p>
                     </div>
                     <button
                       type="button"
-                      onClick={() => onReviewLead(lead.id)}
-                      className="rounded-lg bg-brand-red px-2.5 py-1.5 text-[11px] font-bold text-white"
+                      onClick={() => onReviewLead(task.lead_id)}
+                      className="shrink-0 rounded-lg bg-brand-red px-2.5 py-1.5 text-[11px] font-bold text-white"
                     >
                       Review
                     </button>
@@ -69,25 +76,31 @@ export function CrmDashboardPanel({
         </div>
 
         <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
-          <h3 className="text-lg font-bold text-ink">Recent Team Activity</h3>
-          <p className="mt-1 text-xs text-ink/55">Latest comments, stage moves, assignments and site-visit schedules.</p>
+          <h3 className="text-lg font-bold text-ink">{recentActivityTitle}</h3>
+          <p className="mt-1 text-xs text-ink/55">{recentActivitySubtitle}</p>
           <div className="mt-4 max-h-[480px] space-y-2 overflow-y-auto pr-1">
-            {recentActivity.map((c) => {
-              const lead = leads.find((l) => l.id === c.lead_id);
-              return (
-                <div key={c.id} className="rounded-xl border border-border/80 bg-cream/40 p-3 text-xs">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-ink">
-                      {c.author_name}{" "}
-                      <span className="font-mono text-[10px] text-brand-red uppercase">({c.author_role})</span>
-                    </span>
-                    <span className="text-[10px] text-ink/45">{formatShortDate(c.created_at)}</span>
+            {recentActivity.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-ink/50">
+                No recent activity yet.
+              </p>
+            ) : (
+              recentActivity.map((c) => {
+                const lead = leads.find((l) => l.id === c.lead_id);
+                return (
+                  <div key={c.id} className="rounded-xl border border-border/80 bg-cream/40 p-3 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-ink">
+                        {c.author_name}{" "}
+                        <span className="font-mono text-[10px] text-brand-red uppercase">({c.author_role})</span>
+                      </span>
+                      <span className="text-[10px] text-ink/45">{formatShortDate(c.created_at)}</span>
+                    </div>
+                    <p className="mt-1 text-ink/55">Lead: {lead?.name ?? c.lead_id}</p>
+                    <p className="mt-1 leading-relaxed whitespace-pre-wrap text-ink/80">{c.body}</p>
                   </div>
-                  <p className="mt-1 text-ink/55">Lead: {lead?.name ?? c.lead_id}</p>
-                  <p className="mt-1 leading-relaxed text-ink/80">{c.body}</p>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -100,7 +113,7 @@ export function CrmDashboardPanel({
                   <th className="p-2.5">Client</th>
                   <th className="p-2.5">Assignee</th>
                   <th className="p-2.5">Stage</th>
-                  <th className="p-2.5">Follow-Up</th>
+                  <th className="p-2.5">Next due</th>
                   <th className="p-2.5">Site Visit</th>
                 </tr>
               </thead>

@@ -54,8 +54,8 @@ export function CrmSidebar({
     },
     {
       id: "followups",
-      label: "Follow-Ups",
-      hint: "Today, upcoming & missed",
+      label: "Tasks",
+      hint: "Open to-dos by due date",
       icon: CalendarClock,
       count: counts.followups,
     },

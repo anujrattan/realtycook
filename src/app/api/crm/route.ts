@@ -5,8 +5,10 @@ import {
   addLeadComment,
   assignLeadWithRbac,
   bulkCreateLeads,
+  createCrmTask,
   createOrMergeLead,
   getCrmSnapshot,
+  type CrmTaskStatus,
   type LeadIntent,
   type LeadStage,
   type StageReason,
@@ -15,6 +17,7 @@ import {
   type UserRole,
   updateCrmLead,
   updateCrmProperty,
+  updateCrmTask,
   updateLeadStageOrFollowup,
 } from "@/lib/crm-store";
 
@@ -292,6 +295,51 @@ export async function POST(request: Request) {
     }
     const snapshot = await getCrmSnapshot();
     return NextResponse.json({ ok: true, snapshot });
+  }
+
+  if (action === "create_task") {
+    const result = await createCrmTask({
+      actorId,
+      leadId: String(payload.leadId ?? ""),
+      title: String(payload.title ?? ""),
+      description: payload.description !== undefined ? String(payload.description) : "",
+      dueAt: String(payload.dueAt ?? ""),
+      assignedTo:
+        payload.assignedTo === undefined
+          ? undefined
+          : payload.assignedTo
+            ? String(payload.assignedTo)
+            : null,
+    });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 422 });
+    }
+    const snapshot = await getCrmSnapshot();
+    return NextResponse.json({ ok: true, task: result.task, snapshot });
+  }
+
+  if (action === "update_task") {
+    const result = await updateCrmTask({
+      actorId,
+      taskId: String(payload.taskId ?? ""),
+      patch: {
+        title: payload.title !== undefined ? String(payload.title) : undefined,
+        description: payload.description !== undefined ? String(payload.description) : undefined,
+        dueAt: payload.dueAt !== undefined ? String(payload.dueAt) : undefined,
+        status: payload.status !== undefined ? (payload.status as CrmTaskStatus) : undefined,
+        assignedTo:
+          payload.assignedTo === undefined
+            ? undefined
+            : payload.assignedTo
+              ? String(payload.assignedTo)
+              : null,
+      },
+    });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 403 });
+    }
+    const snapshot = await getCrmSnapshot();
+    return NextResponse.json({ ok: true, task: result.task, snapshot });
   }
 
   return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });

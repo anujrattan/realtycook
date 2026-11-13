@@ -174,10 +174,17 @@ export const PILLAR_LABELS: Record<ServicePillar, string> = {
 
 export type FollowupStatus = "today" | "upcoming" | "missed";
 export type FollowupBucket = "all" | FollowupStatus;
+/** Tasks screen filters. Closed is opt-in and excluded from All. */
+export type TaskBucket = "all" | "today" | "upcoming" | "missed" | "closed";
+export type TaskDueStatus = "today" | "upcoming" | "missed" | "closed";
 export type CrmNavId = "pipeline" | "followups" | "inventory" | "team" | "dashboard";
 
 export function followupKey(lead: CrmLead) {
   return `${lead.id}:${lead.next_followup_at ?? ""}`;
+}
+
+export function taskKey(task: { id: string; due_at: string; status: string }) {
+  return `${task.id}:${task.due_at}:${task.status}`;
 }
 
 export function followupStatusStyles(status: FollowupStatus) {
@@ -191,18 +198,66 @@ export function followupStatusStyles(status: FollowupStatus) {
   }
   if (status === "today") {
     return {
-      row: "bg-emerald-500/10",
-      badge: "bg-emerald-600 text-white",
-      text: "text-emerald-800",
-      label: "Today",
+      row: "bg-white",
+      badge: "bg-amber-500 text-ink",
+      text: "text-amber-900",
+      label: "Due today",
     };
   }
   return {
-    row: "bg-amber-400/15",
-    badge: "bg-amber-500 text-ink",
-    text: "text-amber-800",
+    row: "bg-white",
+    badge: "bg-cream text-ink/70",
+    text: "text-ink/70",
     label: "Upcoming",
   };
+}
+
+/** Color scheme: red=missed, yellow=due today, white=today row, green=closed. */
+export function taskStatusStyles(status: TaskDueStatus) {
+  if (status === "closed") {
+    return {
+      row: "bg-emerald-500/10",
+      badge: "bg-emerald-600 text-white",
+      text: "text-emerald-800",
+      label: "Closed",
+    };
+  }
+  if (status === "missed") {
+    return {
+      row: "bg-brand-red-soft/45",
+      badge: "bg-brand-red text-white",
+      text: "text-brand-red",
+      label: "Missed",
+    };
+  }
+  if (status === "today") {
+    return {
+      row: "bg-white",
+      badge: "bg-amber-500 text-ink",
+      text: "text-amber-900",
+      label: "Due today",
+    };
+  }
+  return {
+    row: "bg-white",
+    badge: "border border-border bg-cream text-ink/70",
+    text: "text-ink/70",
+    label: "Upcoming",
+  };
+}
+
+export function classifyTaskDue(
+  dueAt: string | null,
+  status: string,
+  nowMs: number | null,
+): TaskDueStatus | null {
+  if (status === "closed") return "closed";
+  if (!dueAt || nowMs === null) return null;
+  const t = new Date(dueAt).getTime();
+  if (Number.isNaN(t)) return null;
+  if (t < nowMs) return "missed";
+  if (t <= endOfLocalDay(nowMs)) return "today";
+  return "upcoming";
 }
 
 export function cleanAdvisorName(name: string) {

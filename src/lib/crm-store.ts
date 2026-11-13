@@ -216,6 +216,22 @@ export interface CrmProperty {
   active: boolean;
 }
 
+export type CrmTaskStatus = "open" | "closed";
+
+export interface CrmTask {
+  id: string;
+  lead_id: string;
+  title: string;
+  description: string;
+  status: CrmTaskStatus;
+  due_at: string;
+  assigned_to: string | null;
+  created_by: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CrmStateSnapshot {
   storageMode: "supabase" | "memory_fallback";
   whatsappNumber: string;
@@ -223,6 +239,7 @@ export interface CrmStateSnapshot {
   leads: CrmLead[];
   comments: CrmLeadComment[];
   properties: CrmProperty[];
+  tasks: CrmTask[];
 }
 
 /* -------------------------------------------------------------------------- */
@@ -546,11 +563,26 @@ const SEED_PROPERTIES: CrmProperty[] = [
   },
 ];
 
+const SEED_TASKS: CrmTask[] = SEED_LEADS.filter((l) => l.next_followup_at).map((l, idx) => ({
+  id: `task-seed-${idx + 1}`,
+  lead_id: l.id,
+  title: `Follow up with ${l.name}`,
+  description: l.notes_summary || "Seeded from next follow-up.",
+  status: "open" as const,
+  due_at: l.next_followup_at as string,
+  assigned_to: l.assigned_to,
+  created_by: l.assigned_to,
+  completed_at: null,
+  created_at: l.updated_at,
+  updated_at: l.updated_at,
+}));
+
 interface MemoryStore {
   users: CrmUser[];
   leads: CrmLead[];
   comments: CrmLeadComment[];
   properties: CrmProperty[];
+  tasks: CrmTask[];
 }
 
 const globalForCrm = globalThis as unknown as { __realtyCookCrmStore?: MemoryStore };
@@ -562,7 +594,10 @@ function getMemoryStore(): MemoryStore {
       leads: [...SEED_LEADS],
       comments: [...SEED_COMMENTS],
       properties: [...SEED_PROPERTIES],
+      tasks: [...SEED_TASKS],
     };
+  } else if (!globalForCrm.__realtyCookCrmStore.tasks) {
+    globalForCrm.__realtyCookCrmStore.tasks = [...SEED_TASKS];
   }
   return globalForCrm.__realtyCookCrmStore;
 }
@@ -603,11 +638,12 @@ export async function getCrmSnapshot(): Promise<CrmStateSnapshot> {
 
   if (cfg.enabled) {
     try {
-      const [users, leads, comments, properties] = await Promise.all([
+      const [users, leads, comments, properties, tasks] = await Promise.all([
         sbFetch<CrmUser[]>("crm_users?active=eq.true&order=created_at.asc"),
         sbFetch<CrmLead[]>("crm_leads?order=updated_at.desc"),
         sbFetch<CrmLeadComment[]>("crm_lead_comments?order=created_at.desc"),
         sbFetch<CrmProperty[]>("crm_properties?active=eq.true&order=created_at.desc"),
+        sbFetch<CrmTask[]>("crm_tasks?order=due_at.asc"),
       ]);
       return {
         storageMode: "supabase",
@@ -621,6 +657,7 @@ export async function getCrmSnapshot(): Promise<CrmStateSnapshot> {
         comments,
         // Prefer live inventory rows. Only fall back to demo seed when the table is empty.
         properties: properties.length ? properties : [],
+        tasks,
       };
     } catch (err) {
       console.warn("[crm-store] Supabase query failed, falling back to memory store:", err);
@@ -641,6 +678,7 @@ export async function getCrmSnapshot(): Promise<CrmStateSnapshot> {
       .sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
     comments: [...mem.comments].sort((a, b) => b.created_at.localeCompare(a.created_at)),
     properties: [...mem.properties].filter((p) => p.active).sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    tasks: [...mem.tasks].sort((a, b) => a.due_at.localeCompare(b.due_at)),
   };
 }
 
@@ -1443,6 +1481,156 @@ export async function removeCrmUserWithRbac(params: {
     }
   }
   return { ok: true };
+}
+
+export async function createCrmTask(params: {
+  actorId: string;
+  leadId: string;
+  title: string;
+  description?: string;
+  dueAt: string;
+  assignedTo?: string | null;
+}): Promise<{ ok: true; task: CrmTask } | { ok: false; error: string }> {
+  const snap = await getCrmSnapshot();
+  const actor = snap.users.find((u) => u.id === params.actorId);
+  if (!actor) return { ok: false, error: "Unauthorized actor." };
+
+  const lead = snap.leads.find((l) => l.id === params.leadId);
+  if (!lead) return { ok: false, error: "Lead not found." };
+
+  const title = params.title.trim();
+  if (title.length < 3) return { ok: false, error: "Task title needs at least 3 characters." };
+  const dueAt = params.dueAt.trim();
+  if (!dueAt || Number.isNaN(new Date(dueAt).getTime())) {
+    return { ok: false, error: "A valid due date / end date is required." };
+  }
+
+  const assignedTo =
+    params.assignedTo === undefined
+      ? actor.role === "sales"
+        ? actor.id
+        : lead.assigned_to ?? actor.id
+      : params.assignedTo;
+  if (actor.role === "sales" && assignedTo && assignedTo !== actor.id) {
+    return { ok: false, error: "Sales accounts can only assign tasks to themselves." };
+  }
+
+  const now = new Date().toISOString();
+  const row = {
+    lead_id: params.leadId,
+    title,
+    description: (params.description ?? "").trim(),
+    status: "open" as const,
+    due_at: new Date(dueAt).toISOString(),
+    assigned_to: assignedTo,
+    created_by: actor.id,
+    completed_at: null as string | null,
+    created_at: now,
+    updated_at: now,
+  };
+
+  const cfg = getSupabaseConfig();
+  if (cfg.enabled) {
+    try {
+      const inserted = await sbFetch<CrmTask[]>("crm_tasks", {
+        method: "POST",
+        body: JSON.stringify(row),
+      });
+      if (inserted[0]) {
+        await sbFetch(`crm_leads?id=eq.${encodeURIComponent(params.leadId)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ next_followup_at: row.due_at, updated_at: now }),
+        });
+        return { ok: true, task: inserted[0] };
+      }
+    } catch (err) {
+      console.warn("[crm-store] createCrmTask failed, using memory store:", err);
+    }
+  }
+
+  const mem = getMemoryStore();
+  const task: CrmTask = { id: newCrmId(), ...row };
+  mem.tasks.unshift(task);
+  const memLead = mem.leads.find((l) => l.id === params.leadId);
+  if (memLead) {
+    memLead.next_followup_at = row.due_at;
+    memLead.updated_at = now;
+  }
+  return { ok: true, task };
+}
+
+export async function updateCrmTask(params: {
+  actorId: string;
+  taskId: string;
+  patch: {
+    title?: string;
+    description?: string;
+    dueAt?: string;
+    status?: CrmTaskStatus;
+    assignedTo?: string | null;
+  };
+}): Promise<{ ok: true; task: CrmTask } | { ok: false; error: string }> {
+  const snap = await getCrmSnapshot();
+  const actor = snap.users.find((u) => u.id === params.actorId);
+  if (!actor) return { ok: false, error: "Unauthorized actor." };
+
+  const existing = snap.tasks.find((t) => t.id === params.taskId);
+  if (!existing) return { ok: false, error: "Task not found." };
+  if (actor.role === "sales" && existing.assigned_to && existing.assigned_to !== actor.id) {
+    return { ok: false, error: "You can only update tasks assigned to you." };
+  }
+
+  const now = new Date().toISOString();
+  const nextStatus = params.patch.status ?? existing.status;
+  const dueAt =
+    params.patch.dueAt !== undefined
+      ? new Date(params.patch.dueAt).toISOString()
+      : existing.due_at;
+  if (Number.isNaN(new Date(dueAt).getTime())) {
+    return { ok: false, error: "A valid due date / end date is required." };
+  }
+
+  const assignedTo =
+    params.patch.assignedTo !== undefined ? params.patch.assignedTo : existing.assigned_to;
+  if (actor.role === "sales" && assignedTo && assignedTo !== actor.id) {
+    return { ok: false, error: "Sales accounts can only assign tasks to themselves." };
+  }
+
+  const title =
+    params.patch.title !== undefined ? params.patch.title.trim() : existing.title;
+  if (title.length < 3) return { ok: false, error: "Task title needs at least 3 characters." };
+
+  const body = {
+    title,
+    description:
+      params.patch.description !== undefined
+        ? params.patch.description.trim()
+        : existing.description,
+    due_at: dueAt,
+    status: nextStatus,
+    assigned_to: assignedTo,
+    completed_at: nextStatus === "closed" ? existing.completed_at ?? now : null,
+    updated_at: now,
+  };
+
+  const cfg = getSupabaseConfig();
+  if (cfg.enabled) {
+    try {
+      const updated = await sbFetch<CrmTask[]>(
+        `crm_tasks?id=eq.${encodeURIComponent(params.taskId)}`,
+        { method: "PATCH", body: JSON.stringify(body) },
+      );
+      if (updated[0]) return { ok: true, task: updated[0] };
+    } catch (err) {
+      console.warn("[crm-store] updateCrmTask failed, using memory store:", err);
+    }
+  }
+
+  const mem = getMemoryStore();
+  const idx = mem.tasks.findIndex((t) => t.id === params.taskId);
+  if (idx < 0) return { ok: false, error: "Task not found." };
+  mem.tasks[idx] = { ...mem.tasks[idx], ...body };
+  return { ok: true, task: mem.tasks[idx] };
 }
 
 export async function getCrmUserById(userId: string): Promise<CrmUser | null> {

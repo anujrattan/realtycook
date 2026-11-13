@@ -11,15 +11,15 @@ import {
 import { parseBulkLeadFile, type BulkLeadRow } from "@/lib/crm-bulk-import";
 import { CrmDashboardPanel } from "@/components/crm/crm-dashboard-panel";
 import { CrmFollowupToast } from "@/components/crm/crm-followup-toast";
-import { CrmFollowupsView } from "@/components/crm/crm-followups-view";
 import { CrmInventoryRecordModal } from "@/components/crm/crm-inventory-record-modal";
 import { CrmInventoryView } from "@/components/crm/crm-inventory-view";
 import { CrmLeadRecordModal } from "@/components/crm/crm-lead-record-modal";
 import { CrmPipelineBoard } from "@/components/crm/crm-pipeline-board";
+import { CrmTasksView } from "@/components/crm/crm-tasks-view";
 import {
   type CrmNavId,
-  type FollowupBucket,
-  classifyFollowup,
+  type TaskBucket,
+  classifyTaskDue,
   followupKey,
   getStageReasonOption,
   normalizeBudget,
@@ -28,6 +28,7 @@ import {
   normalizePillar,
   normalizeStageReason,
   stageRequiresReason,
+  taskKey,
 } from "@/components/crm/crm-shared";
 import { CrmSidebar } from "@/components/crm/crm-sidebar";
 import { CrmTeamView } from "@/components/crm/crm-team-view";
@@ -38,6 +39,7 @@ import {
   canManageUsers,
   newCrmId,
   type CrmLead,
+  type CrmTask,
   CrmProperty,
   CrmStateSnapshot,
   CrmUser,
@@ -66,7 +68,7 @@ export function CrmDashboard({
   );
   const [activeTab, setActiveTab] = useState<CrmNavId>("dashboard");
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
-  const [followupBucket, setFollowupBucket] = useState<FollowupBucket>("all");
+  const [taskBucket, setTaskBucket] = useState<TaskBucket>("all");
 
   const [search, setSearch] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState<"all" | "mine" | "unassigned">("all");
@@ -75,6 +77,9 @@ export function CrmDashboard({
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState("");
   const [followupInput, setFollowupInput] = useState("");
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDescription, setTaskDescription] = useState("");
+  const [taskDueInput, setTaskDueInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [bannerSuccess, setBannerSuccess] = useState<string | null>(null);
@@ -84,6 +89,7 @@ export function CrmDashboard({
 
   const [followupPopup, setFollowupPopup] = useState<CrmLead | null>(null);
   const [handledFollowupKeys, setHandledFollowupKeys] = useState<Set<string>>(() => new Set());
+  const [handledTaskKeys, setHandledTaskKeys] = useState<Set<string>>(() => new Set());
 
   const [showNewLead, setShowNewLead] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
@@ -157,52 +163,72 @@ export function CrmDashboard({
     });
   }, [snapshot.leads, assigneeFilter, search, actor]);
 
-  const myFollowups = useMemo(() => {
+  const myTasks = useMemo(() => {
     if (!actor || nowMs === null) {
       return {
-        today: [] as CrmLead[],
-        upcoming: [] as CrmLead[],
-        missed: [] as CrmLead[],
-        all: [] as CrmLead[],
+        today: [] as CrmTask[],
+        upcoming: [] as CrmTask[],
+        missed: [] as CrmTask[],
+        closed: [] as CrmTask[],
+        all: [] as CrmTask[],
       };
     }
+    const tasks = snapshot.tasks ?? [];
     const scoped =
-      actor.role === "superadmin"
-        ? snapshot.leads
-        : snapshot.leads.filter((l) => l.assigned_to === actor.id);
+      actor.role === "superadmin" || actor.role === "admin"
+        ? tasks
+        : tasks.filter((t) => t.assigned_to === actor.id || t.created_by === actor.id);
 
-    const today: CrmLead[] = [];
-    const upcoming: CrmLead[] = [];
-    const missed: CrmLead[] = [];
+    const today: CrmTask[] = [];
+    const upcoming: CrmTask[] = [];
+    const missed: CrmTask[] = [];
+    const closed: CrmTask[] = [];
 
-    for (const lead of scoped) {
-      const status = classifyFollowup(lead.next_followup_at, nowMs);
-      if (status === "today") today.push(lead);
-      else if (status === "upcoming") upcoming.push(lead);
-      else if (status === "missed") missed.push(lead);
+    for (const task of scoped) {
+      const status = classifyTaskDue(task.due_at, task.status, nowMs);
+      if (status === "closed") closed.push(task);
+      else if (status === "today") today.push(task);
+      else if (status === "upcoming") upcoming.push(task);
+      else if (status === "missed") missed.push(task);
     }
 
-    const byTime = (a: CrmLead, b: CrmLead) =>
-      new Date(a.next_followup_at ?? 0).getTime() - new Date(b.next_followup_at ?? 0).getTime();
+    const byDue = (a: CrmTask, b: CrmTask) =>
+      new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
 
-    const todaySorted = today.sort(byTime);
-    const upcomingSorted = upcoming.sort(byTime);
-    const missedSorted = missed.sort(byTime);
+    const todaySorted = today.sort(byDue);
+    const upcomingSorted = upcoming.sort(byDue);
+    const missedSorted = missed.sort(byDue);
+    const closedSorted = closed.sort(
+      (a, b) => new Date(b.completed_at ?? b.updated_at).getTime() - new Date(a.completed_at ?? a.updated_at).getTime(),
+    );
 
     return {
       today: todaySorted,
       upcoming: upcomingSorted,
       missed: missedSorted,
-      // Missed first, then today, then upcoming — so urgency stays visible in All
+      closed: closedSorted,
       all: [...missedSorted, ...todaySorted, ...upcomingSorted],
     };
-  }, [snapshot.leads, actor, nowMs]);
+  }, [snapshot.tasks, actor, nowMs]);
 
   const pendingPopupFollowups = useMemo(() => {
-    return [...myFollowups.missed, ...myFollowups.today].filter(
-      (lead) => lead.next_followup_at && !handledFollowupKeys.has(followupKey(lead)),
+    // Reuse toast for urgent open tasks mapped back to their leads.
+    const urgent = [...myTasks.missed, ...myTasks.today].filter(
+      (task) => !handledTaskKeys.has(taskKey(task)),
     );
-  }, [myFollowups.missed, myFollowups.today, handledFollowupKeys]);
+    const leads: CrmLead[] = [];
+    for (const task of urgent) {
+      const lead = snapshot.leads.find((l) => l.id === task.lead_id);
+      if (!lead) continue;
+      if (leads.some((l) => l.id === lead.id)) continue;
+      leads.push({
+        ...lead,
+        next_followup_at: task.due_at,
+        notes_summary: task.title + (task.description ? ` — ${task.description}` : ""),
+      });
+    }
+    return leads;
+  }, [myTasks.missed, myTasks.today, handledTaskKeys, snapshot.leads]);
 
   const selectedLead: CrmLead | null = useMemo(
     () => snapshot.leads.find((l) => l.id === selectedLeadId) ?? null,
@@ -224,12 +250,17 @@ export function CrmDashboard({
     [snapshot.properties, selectedLead],
   );
 
-  const recentActivity = useMemo(
-    () =>
-      [...snapshot.comments]
-        .sort((a, b) => b.created_at.localeCompare(a.created_at))
-        .slice(0, 25),
-    [snapshot.comments],
+  const recentActivity = useMemo(() => {
+    const comments =
+      actor?.role === "superadmin"
+        ? snapshot.comments
+        : snapshot.comments.filter((c) => c.author_id === actor?.id);
+    return [...comments].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 25);
+  }, [snapshot.comments, actor]);
+
+  const selectedLeadTasks = useMemo(
+    () => (snapshot.tasks ?? []).filter((t) => t.lead_id === selectedLeadId),
+    [snapshot.tasks, selectedLeadId],
   );
 
   useEffect(() => {
@@ -265,10 +296,12 @@ export function CrmDashboard({
             closure_reason: normalizeStageReason(lead.closure_reason, lead.stage),
           })),
           properties: data.properties ?? [],
+          tasks: data.tasks ?? [],
         };
         setSnapshot(next);
         try {
-          window.localStorage.setItem("rc_crm_snapshot_v4", JSON.stringify(next));
+          window.localStorage.setItem("rc_crm_snapshot_v5", JSON.stringify(next));
+          window.localStorage.removeItem("rc_crm_snapshot_v4");
           window.localStorage.removeItem("rc_crm_snapshot_v3");
           window.localStorage.removeItem("rc_crm_snapshot_v2");
         } catch {
@@ -281,6 +314,7 @@ export function CrmDashboard({
 
       try {
         const saved =
+          window.localStorage.getItem("rc_crm_snapshot_v5") ??
           window.localStorage.getItem("rc_crm_snapshot_v4") ??
           window.localStorage.getItem("rc_crm_snapshot_v3");
         if (!saved) return;
@@ -294,6 +328,7 @@ export function CrmDashboard({
             closure_reason: normalizeStageReason(lead.closure_reason, lead.stage),
           })),
           properties: parsed.properties ?? [],
+          tasks: parsed.tasks ?? [],
         });
       } catch {
         // ignore
@@ -340,6 +375,20 @@ export function CrmDashboard({
       next.add(key);
       return next;
     });
+    // Also dismiss matching open task toasts for this lead/due time.
+    const matching = (snapshot.tasks ?? []).filter(
+      (t) =>
+        t.lead_id === lead.id &&
+        t.status === "open" &&
+        t.due_at === lead.next_followup_at,
+    );
+    if (matching.length) {
+      setHandledTaskKeys((prev) => {
+        const next = new Set(prev);
+        for (const t of matching) next.add(taskKey(t));
+        return next;
+      });
+    }
   }
 
   function advanceFollowupPopup(handledLead?: CrmLead | null) {
@@ -373,9 +422,11 @@ export function CrmDashboard({
   }, [actor, nowMs, pendingPopupFollowups, followupPopup]);
 
   function saveLocalSnapshot(next: CrmStateSnapshot) {
-    setSnapshot(next);
+    const normalized: CrmStateSnapshot = { ...next, tasks: next.tasks ?? [] };
+    setSnapshot(normalized);
     try {
-      window.localStorage.setItem("rc_crm_snapshot_v4", JSON.stringify(next));
+      window.localStorage.setItem("rc_crm_snapshot_v5", JSON.stringify(normalized));
+      window.localStorage.removeItem("rc_crm_snapshot_v4");
       window.localStorage.removeItem("rc_crm_snapshot_v3");
     } catch {
       // ignore
@@ -776,6 +827,70 @@ export function CrmDashboard({
       return true;
     }
 
+    if (action === "create_task") {
+      const leadId = String(body.leadId ?? "");
+      const title = String(body.title ?? "").trim();
+      const dueAt = body.dueAt ? new Date(String(body.dueAt)).toISOString() : "";
+      if (!leadId || title.length < 3 || !dueAt || Number.isNaN(new Date(dueAt).getTime())) {
+        setBannerError("Task title and a valid due date are required.");
+        return false;
+      }
+      const task: CrmTask = {
+        id: newCrmId(),
+        lead_id: leadId,
+        title,
+        description: String(body.description ?? "").trim(),
+        status: "open",
+        due_at: dueAt,
+        assigned_to: body.assignedTo ? String(body.assignedTo) : actor.id,
+        created_by: actor.id,
+        completed_at: null,
+        created_at: now,
+        updated_at: now,
+      };
+      saveLocalSnapshot({
+        ...snapshot,
+        tasks: [task, ...(snapshot.tasks ?? [])],
+        leads: snapshot.leads.map((l) =>
+          l.id === leadId ? { ...l, next_followup_at: dueAt, updated_at: now } : l,
+        ),
+      });
+      return true;
+    }
+
+    if (action === "update_task") {
+      const taskId = String(body.taskId ?? "");
+      const existing = (snapshot.tasks ?? []).find((t) => t.id === taskId);
+      if (!existing) {
+        setBannerError("Task not found.");
+        return false;
+      }
+      const nextStatus = (body.status as CrmTask["status"] | undefined) ?? existing.status;
+      saveLocalSnapshot({
+        ...snapshot,
+        tasks: (snapshot.tasks ?? []).map((t) =>
+          t.id === taskId
+            ? {
+                ...t,
+                title: body.title !== undefined ? String(body.title) : t.title,
+                description: body.description !== undefined ? String(body.description) : t.description,
+                due_at: body.dueAt ? new Date(String(body.dueAt)).toISOString() : t.due_at,
+                status: nextStatus,
+                assigned_to:
+                  body.assignedTo === undefined
+                    ? t.assigned_to
+                    : body.assignedTo
+                      ? String(body.assignedTo)
+                      : null,
+                completed_at: nextStatus === "closed" ? t.completed_at ?? now : null,
+                updated_at: now,
+              }
+            : t,
+        ),
+      });
+      return true;
+    }
+
     return false;
   }
 
@@ -934,8 +1049,9 @@ export function CrmDashboard({
     const option = getStageReasonOption(reason);
     if (!option) return;
     const note = discussion.trim();
-    if (!note) {
-      setBannerError("Add a discussion summary before saving.");
+    const discussionRequired = option.group === "Connected";
+    if (discussionRequired && !note) {
+      setBannerError("Add a discussion summary for Connected outcomes.");
       return;
     }
 
@@ -953,20 +1069,24 @@ export function CrmDashboard({
     });
     if (!ok) return;
 
-    const commentBody = `${option.label}\n\n${note}`;
-    await postCrmAction({
-      action: "add_comment",
-      leadId,
-      body: commentBody,
-      ...(nextFollowupAt ? { nextFollowupAt } : {}),
-    });
+    if (note) {
+      const commentBody = `${option.label}\n\n${note}`;
+      await postCrmAction({
+        action: "add_comment",
+        leadId,
+        body: commentBody,
+        ...(nextFollowupAt ? { nextFollowupAt } : {}),
+      });
+    }
 
     setSelectedLeadId(leadId);
     setPendingStageChange(null);
     setBannerSuccess(
       option.schedulesFollowup
-        ? "Call outcome saved to the timeline. Follow-up set for tomorrow."
-        : "Status and discussion saved to the timeline.",
+        ? "Call outcome saved. Follow-up set for tomorrow."
+        : note
+          ? "Status and discussion saved to the timeline."
+          : "Status saved.",
     );
   }
 
@@ -1009,6 +1129,34 @@ export function CrmDashboard({
     });
   }
 
+  async function handleCreateTask(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedLeadId) return;
+    if (!taskTitle.trim() || !taskDueInput) {
+      setBannerError("Task title and due date are required.");
+      return;
+    }
+    const ok = await postCrmAction({
+      action: "create_task",
+      leadId: selectedLeadId,
+      title: taskTitle.trim(),
+      description: taskDescription.trim(),
+      dueAt: new Date(taskDueInput).toISOString(),
+      assignedTo: actor.id,
+    });
+    if (ok) {
+      setTaskTitle("");
+      setTaskDescription("");
+      setTaskDueInput("");
+      setBannerSuccess("Task created.");
+    }
+  }
+
+  async function handleCloseLeadTask(taskId: string) {
+    const ok = await postCrmAction({ action: "update_task", taskId, status: "closed" });
+    if (ok) setBannerSuccess("Task closed.");
+  }
+
   async function handleBulkImport() {
     if (!bulkRows.length) return;
     const ok = await postCrmAction({ action: "bulk_create_leads", leads: bulkRows });
@@ -1027,8 +1175,8 @@ export function CrmDashboard({
       subtitle: "Drag cards across stages or open a lead record for full detail.",
     },
     followups: {
-      title: "Follow-Ups",
-      subtitle: "Green for today, yellow for upcoming, red for missed.",
+      title: "Tasks",
+      subtitle: "Red missed · yellow due today · white open · green closed (Closed filter).",
     },
     inventory: {
       title: "Verified Inventory",
@@ -1040,7 +1188,7 @@ export function CrmDashboard({
     },
     dashboard: {
       title: "Dashboard",
-      subtitle: "Missed follow-ups, recent activity, and a full lead snapshot.",
+      subtitle: "Missed tasks, recent activity, and a full lead snapshot.",
     },
   };
 
@@ -1055,10 +1203,10 @@ export function CrmDashboard({
         showUserManagement={canManageUsers(actor)}
         counts={{
           pipeline: snapshot.leads.length,
-          followups: myFollowups.today.length + myFollowups.missed.length,
+          followups: myTasks.today.length + myTasks.missed.length,
           inventory: snapshot.properties.length,
           team: snapshot.users.length,
-          missed: myFollowups.missed.length,
+          missed: myTasks.missed.length,
         }}
       />
 
@@ -1127,18 +1275,22 @@ export function CrmDashboard({
           )}
 
           {activeTab === "followups" && (
-            <CrmFollowupsView
-              myFollowups={myFollowups}
-              followupBucket={followupBucket}
-              setFollowupBucket={setFollowupBucket}
+            <CrmTasksView
+              myTasks={myTasks}
+              taskBucket={taskBucket}
+              setTaskBucket={setTaskBucket}
               nowMs={nowMs}
+              leads={snapshot.leads}
               users={snapshot.users}
               actor={actor}
-              onOpenLead={(lead) => {
-                advanceFollowupPopup(lead);
-                setSelectedLeadId(lead.id);
+              busy={busy}
+              onOpenLead={(leadId) => {
+                setSelectedLeadId(leadId);
+                setActiveTab("pipeline");
               }}
-              advanceFollowupPopup={advanceFollowupPopup}
+              onCloseTask={(taskId) => {
+                void postCrmAction({ action: "update_task", taskId, status: "closed" });
+              }}
             />
           )}
 
@@ -1167,8 +1319,14 @@ export function CrmDashboard({
 
           {activeTab === "dashboard" && (
             <CrmDashboardPanel
-              myFollowups={myFollowups}
+              missedTasks={myTasks.missed}
               recentActivity={recentActivity}
+              recentActivityTitle="Recent Activity"
+              recentActivitySubtitle={
+                actor.role === "superadmin"
+                  ? "Latest comments and updates across the whole team."
+                  : "Your latest comments, stage moves, and notes."
+              }
               leads={snapshot.leads}
               users={snapshot.users}
               nowMs={nowMs}
@@ -1232,6 +1390,15 @@ export function CrmDashboard({
             postCrmAction({ action: "assign_lead", leadId: selectedLead.id, targetUserId: actor.id })
           }
           onSaveLead={handleSaveLead}
+          leadTasks={selectedLeadTasks}
+          taskTitle={taskTitle}
+          setTaskTitle={setTaskTitle}
+          taskDescription={taskDescription}
+          setTaskDescription={setTaskDescription}
+          taskDueInput={taskDueInput}
+          setTaskDueInput={setTaskDueInput}
+          onCreateTask={handleCreateTask}
+          onCloseTask={handleCloseLeadTask}
         />
       )}
 

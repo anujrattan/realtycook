@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarClock, MapPin, MessageCircle, Pencil, Send, X } from "lucide-react";
+import { CalendarClock, CheckCircle2, MapPin, MessageCircle, Pencil, Plus, Send, X } from "lucide-react";
 import type {
   CrmLead,
   CrmLeadComment,
   CrmProperty,
+  CrmTask,
   CrmUser,
   LeadIntent,
   LeadStage,
@@ -20,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   BUDGET_LABELS,
   buildWhatsAppUrl,
+  classifyTaskDue,
   cleanAdvisorName,
   formatShortDate,
   formatSiteVisit,
@@ -27,6 +29,7 @@ import {
   PILLAR_LABELS,
   stageReasonLabel,
   STAGES,
+  taskStatusStyles,
 } from "@/components/crm/crm-shared";
 
 export type LeadEditForm = {
@@ -78,6 +81,15 @@ export type CrmLeadRecordModalProps = {
   onAssignLead: (targetUserId: string | null) => void;
   onAssignToMe: () => void;
   onSaveLead: (form: LeadEditForm) => Promise<boolean> | boolean;
+  leadTasks: CrmTask[];
+  taskTitle: string;
+  setTaskTitle: (value: string) => void;
+  taskDescription: string;
+  setTaskDescription: (value: string) => void;
+  taskDueInput: string;
+  setTaskDueInput: (value: string) => void;
+  onCreateTask: (e: React.FormEvent) => void;
+  onCloseTask: (taskId: string) => void;
 };
 
 export function CrmLeadRecordModal({
@@ -105,6 +117,15 @@ export function CrmLeadRecordModal({
   onAssignLead,
   onAssignToMe,
   onSaveLead,
+  leadTasks,
+  taskTitle,
+  setTaskTitle,
+  taskDescription,
+  setTaskDescription,
+  taskDueInput,
+  setTaskDueInput,
+  onCreateTask,
+  onCloseTask,
 }: CrmLeadRecordModalProps) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<LeadEditForm>(() => formFromLead(lead));
@@ -382,7 +403,7 @@ export function CrmLeadRecordModal({
               </div>
 
               <div>
-                <p className="text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase">Next follow-up</p>
+                <p className="text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase">Next due</p>
                 <p
                   className={cn(
                     "mt-2 text-base font-semibold",
@@ -398,6 +419,115 @@ export function CrmLeadRecordModal({
                 <p className="mt-2 text-sm leading-relaxed text-ink/75">
                   {lead.notes_summary || "No conversation notes yet."}
                 </p>
+              </div>
+
+              <div className="rounded-3xl border border-border bg-cream/40 p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-ink">Tasks</p>
+                    <p className="mt-1 text-xs text-ink/55">
+                      Work items with an end date — shortlist properties, share options, prepare docs.
+                    </p>
+                  </div>
+                </div>
+
+                <form onSubmit={onCreateTask} className="mt-4 space-y-3">
+                  <div>
+                    <Label htmlFor="lead-task-title">Task title *</Label>
+                    <Input
+                      id="lead-task-title"
+                      value={taskTitle}
+                      onChange={(e) => setTaskTitle(e.target.value)}
+                      placeholder="Shortlist 3 options and share on WhatsApp"
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lead-task-due">Due / end date *</Label>
+                    <input
+                      id="lead-task-due"
+                      type="datetime-local"
+                      required
+                      value={taskDueInput}
+                      onChange={(e) => setTaskDueInput(e.target.value)}
+                      className="mt-1.5 h-10 w-full rounded-xl border border-border bg-white px-3 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lead-task-desc">Notes (optional)</Label>
+                    <Textarea
+                      id="lead-task-desc"
+                      rows={2}
+                      value={taskDescription}
+                      onChange={(e) => setTaskDescription(e.target.value)}
+                      placeholder="Budget band, localities, configs…"
+                      className="mt-1.5 resize-none"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={busy || !taskTitle.trim() || !taskDueInput}
+                    className="h-10 rounded-xl bg-ink text-white hover:bg-brand-red"
+                  >
+                    <Plus className="size-4" />
+                    Create task
+                  </Button>
+                </form>
+
+                <div className="mt-5 space-y-2">
+                  {leadTasks.length === 0 ? (
+                    <p className="rounded-2xl border border-dashed border-border bg-white/70 px-4 py-6 text-center text-xs text-ink/50">
+                      No tasks on this lead yet.
+                    </p>
+                  ) : (
+                    leadTasks.map((task) => {
+                      const dueStatus = classifyTaskDue(task.due_at, task.status, nowMs) ?? "upcoming";
+                      const styles = taskStatusStyles(dueStatus);
+                      return (
+                        <div
+                          key={task.id}
+                          className={cn(
+                            "rounded-2xl border border-border/80 px-4 py-3",
+                            styles.row,
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className={cn(
+                                    "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
+                                    styles.badge,
+                                  )}
+                                >
+                                  {styles.label}
+                                </span>
+                                <p className="text-sm font-semibold text-ink">{task.title}</p>
+                              </div>
+                              {task.description ? (
+                                <p className="mt-1 text-xs text-ink/60">{task.description}</p>
+                              ) : null}
+                              <p className={cn("mt-1 text-xs font-semibold tabular-nums", styles.text)}>
+                                Due {formatShortDate(task.due_at)}
+                              </p>
+                            </div>
+                            {task.status === "open" ? (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => onCloseTask(task.id)}
+                                className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+                              >
+                                <CheckCircle2 className="size-3" />
+                                Close
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
 
               {lead.stage === "site_visit_scheduled" && (

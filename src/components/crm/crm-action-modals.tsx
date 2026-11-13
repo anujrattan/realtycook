@@ -405,11 +405,13 @@ export function CrmStageReasonModal({
 
   const stageLabel = STAGES.find((stage) => stage.id === targetStage)?.label ?? targetStage;
   const title = targetStage === "closed" ? "Close lead" : "Call outcome";
+  const selectedOption = reason ? options.find((item) => item.id === reason) : null;
+  const discussionRequired = selectedOption?.group === "Connected";
   const subtitle =
     targetStage === "closed"
-      ? `Choose why ${leadName} is leaving the active pipeline, then capture the discussion.`
-      : `How did the call with ${leadName} go? Capture the discussion summary — it will appear on the lead timeline.`;
-  const canSave = Boolean(reason) && discussion.trim().length > 0;
+      ? `Choose why ${leadName} is leaving the active pipeline.`
+      : `How did the call with ${leadName} go? Discussion is required only for Connected outcomes.`;
+  const canSave = Boolean(reason) && (!discussionRequired || discussion.trim().length > 0);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/60 p-4 backdrop-blur-xs">
@@ -454,14 +456,18 @@ export function CrmStageReasonModal({
               htmlFor="stage-discussion"
               className="text-[11px] font-semibold tracking-[0.12em] text-ink/40 uppercase"
             >
-              Discussion summary *
+              Discussion summary{discussionRequired ? " *" : " (optional)"}
             </Label>
             <Textarea
               id="stage-discussion"
               rows={4}
               value={discussion}
               onChange={(e) => setDiscussion(e.target.value)}
-              placeholder="What was discussed? Any commitments or next steps?"
+              placeholder={
+                discussionRequired
+                  ? "What was discussed? Any commitments or next steps?"
+                  : "Optional note for the timeline…"
+              }
               className="mt-2 min-h-[110px] resize-none rounded-2xl border-border bg-white text-sm leading-relaxed"
             />
           </div>
